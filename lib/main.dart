@@ -1,4 +1,6 @@
+import 'package:career_guidence/screens/homescreen.dart';
 import 'package:career_guidence/screens/login.dart';
+import 'package:career_guidence/screens/quiz.dart';
 import 'package:career_guidence/screens/reg_profile.dart';
 import 'package:career_guidence/screens/sinup.dart';
 import 'package:flutter/material.dart';
@@ -17,11 +19,13 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
       ),
-      initialRoute: '/reg_profile',
+      initialRoute: '/quiz',
       routes: {
         '/': (context) => const LoginPage(),
         '/signup': (context) => const SignUpScreen(),
         '/reg_profile': (context) => const RegProfileScreen(),
+        '/home': (context) => const HomePage(),
+        '/quiz': (context) => const QuizScreen(),
       },
 
       debugShowCheckedModeBanner: false,
