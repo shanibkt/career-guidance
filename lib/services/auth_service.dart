@@ -31,7 +31,7 @@ class AuthService {
   /// body: { "email": "...", "password": "..." }
   /// expected success response: { "token": "<jwt>", "user": { ... } }
   static Future<AuthResult> login(String email, String password) async {
-    final uri = Uri.parse('$_effectiveBaseUrl/api/auth/login');
+    final uri = Uri.parse('${_effectiveBaseUrl}/api/auth/login');
 
     try {
       final resp = await http.post(
@@ -76,7 +76,7 @@ class AuthService {
       return AuthResult(
         success: false,
         message:
-            'Connection refused — is the API running at $_effectiveBaseUrl? (${e.message})',
+            'Connection refused — is the API running at ${_effectiveBaseUrl}? (${e.message})',
       );
     } on FormatException catch (e) {
       return AuthResult(
@@ -92,7 +92,7 @@ class AuthService {
   /// Sends a map of signup fields and expects similar response to login:
   /// { "token": "<jwt>", "user": { ... } }
   static Future<AuthResult> signup(Map<String, dynamic> payload) async {
-    final uri = Uri.parse('$_effectiveBaseUrl/api/auth/signup');
+    final uri = Uri.parse('${_effectiveBaseUrl}/api/auth/signup');
 
     try {
       // Debug: print payload being sent so we can inspect if fields are present
@@ -127,9 +127,8 @@ class AuthService {
 
         // user may be under 'user', 'data', or 'result'
         Map<String, dynamic>? userJson;
-        if (body['user'] is Map<String, dynamic>) {
+        if (body['user'] is Map<String, dynamic>)
           userJson = body['user'] as Map<String, dynamic>?;
-        }
         userJson ??= (body['data'] is Map<String, dynamic>)
             ? body['data'] as Map<String, dynamic>?
             : null;
@@ -174,7 +173,7 @@ class AuthService {
       return AuthResult(
         success: false,
         message:
-            'Connection refused — is the API running at $_effectiveBaseUrl? (${e.message})',
+            'Connection refused — is the API running at ${_effectiveBaseUrl}? (${e.message})',
       );
     } on FormatException catch (e) {
       return AuthResult(

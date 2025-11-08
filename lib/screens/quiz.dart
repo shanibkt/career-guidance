@@ -39,98 +39,122 @@ class _QuizScreenState extends State<QuizScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Career Assessment'),
-        backgroundColor: Colors.blue[700],
-        foregroundColor: Colors.white,
         elevation: 0,
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [Color(0xFFE3F2FD), Color(0xFFBBDEFB)],
+            ),
+          ),
+        ),
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(24.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Title
-            const Text(
-              'Career Assessment Quiz',
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: Colors.blue,
+      body: Stack(
+        children: [
+          Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [Color(0xFFE3F2FD), Color(0xFFBBDEFB)],
               ),
             ),
-
-            const SizedBox(height: 16),
-
-            // Progress indicator
-            Text(
-              'Question $currentQuestion of $totalQuestions',
-              style: const TextStyle(
-                fontSize: 16,
-                color: Colors.grey,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-
-            const SizedBox(height: 8),
-
-            // Progress bar
-            LinearProgressIndicator(
-              value: currentQuestion / totalQuestions,
-              backgroundColor: Colors.grey[300],
-              valueColor: AlwaysStoppedAnimation<Color>(Colors.blue[700]!),
-              minHeight: 6,
-              borderRadius: BorderRadius.circular(3),
-            ),
-
-            const SizedBox(height: 32),
-
-            // Question
-            const Text(
-              'How much do you enjoy solving technical problems or logical challenges?',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w500,
-                height: 1.4,
-              ),
-            ),
-
-            const SizedBox(height: 32),
-
-            // Options
-            Expanded(
-              child: ListView.separated(
-                itemCount: options.length,
-                separatorBuilder: (context, index) =>
-                    const SizedBox(height: 12),
-                itemBuilder: (context, index) {
-                  final option = options[index];
-                  return _buildOptionCard(option, index);
-                },
-              ),
-            ),
-
-            const SizedBox(height: 24),
-
-            // Next Button
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: selectedAnswer != null ? _goToNext : null,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.blue[700],
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Title
+                const Text(
+                  'Career Assessment Quiz',
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.blue,
                   ),
                 ),
-                child: const Text(
-                  'Next',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+
+                const SizedBox(height: 16),
+
+                // Progress indicator
+                Text(
+                  'Question $currentQuestion of $totalQuestions',
+                  style: const TextStyle(
+                    fontSize: 16,
+                    color: Colors.grey,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
-              ),
+
+                const SizedBox(height: 8),
+
+                // Progress bar
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(3),
+                  child: LinearProgressIndicator(
+                    value: currentQuestion / totalQuestions,
+                    backgroundColor: Colors.grey[300],
+                    valueColor:
+                        AlwaysStoppedAnimation<Color>(Colors.blue[700]!),
+                    minHeight: 6,
+                  ),
+                ),
+
+                const SizedBox(height: 32),
+
+                // Question
+                const Text(
+                  'How much do you enjoy solving technical problems or logical challenges?',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w500,
+                    height: 1.4,
+                  ),
+                ),
+
+                const SizedBox(height: 32),
+
+                // Options
+                Expanded(
+                  child: ListView.separated(
+                    itemCount: options.length,
+                    separatorBuilder: (context, index) =>
+                        const SizedBox(height: 12),
+                    itemBuilder: (context, index) {
+                      final option = options[index];
+                      return _buildOptionCard(option, index);
+                    },
+                  ),
+                ),
+
+                const SizedBox(height: 24),
+
+                // Next Button
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: selectedAnswer != null ? _goToNext : null,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.blue[700],
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: const Text(
+                      'Next',
+                      style:
+                          TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                ),
+              ],
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -140,7 +164,9 @@ class _QuizScreenState extends State<QuizScreen> {
 
     return Card(
       elevation: isSelected ? 2 : 1,
-      color: isSelected ? Colors.blue[50] : Colors.white,
+      color: isSelected
+          ? Colors.blue[100]
+          : Colors.white, // Adjusted selection color
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
         side: BorderSide(

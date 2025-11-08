@@ -1,8 +1,8 @@
+import 'package:career_guidence/screens/homescreen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../services/auth_service.dart';
-import 'home.dart';
 
 /// Clean, single implementation of the LoginPage.
 /// Uses a Form with validation, TextEditingControllers and
@@ -35,6 +35,7 @@ class _LoginPageState extends State<LoginPage> {
     final size = MediaQuery.of(context).size;
 
     return Scaffold(
+      backgroundColor: Colors.blue[200],
       body: Stack(
         children: <Widget>[
           // Background gradient
@@ -43,7 +44,7 @@ class _LoginPageState extends State<LoginPage> {
               gradient: LinearGradient(
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
-                colors: [Color(0xFFE8F0FF), Color(0xFFFFFFFF)],
+                colors: [Color.fromARGB(255, 75, 135, 245), Color(0xFFFFFFFF)],
               ),
             ),
           ),
