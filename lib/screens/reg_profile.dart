@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'dart:io';
+import 'package:image_picker/image_picker.dart';
+import '../services/storage_service.dart';
 
 class RegProfileScreen extends StatefulWidget {
   const RegProfileScreen({super.key});
@@ -13,11 +16,14 @@ class _RegProfileScreenState extends State<RegProfileScreen> {
   final List<String> _quickLevels = ['+2', 'Bachelor', 'Master'];
   int _selectedQuick = -1;
 
+  // initial/default values will be set in initState below when loading saved profile
+
   final _fieldCtrl = TextEditingController();
   final _skillCtrl = TextEditingController();
   final List<String> _skills = [];
 
   final _areasCtrl = TextEditingController();
+  String? _imagePath;
 
   @override
   void dispose() {
@@ -27,6 +33,29 @@ class _RegProfileScreenState extends State<RegProfileScreen> {
     super.dispose();
   }
 
+  @override
+  void initState() {
+    super.initState();
+    // Load saved profile if any
+    StorageService.loadProfile().then((map) {
+      if (map != null) {
+        setState(() {
+          _education = map['education'] as String? ?? _education;
+          _fieldCtrl.text = map['field'] as String? ?? '';
+          final skills = map['skills'];
+          if (skills is List) {
+            _skills.clear();
+            _skills.addAll(skills.map((e) => e.toString()));
+          }
+          _areasCtrl.text = map['areas'] as String? ?? '';
+        });
+      }
+    });
+    StorageService.loadProfileImagePath().then((p) {
+      if (p != null) setState(() => _imagePath = p);
+    });
+  }
+
   void _addSkill() {
     final text = _skillCtrl.text.trim();
     if (text.isEmpty) return;
@@ -34,6 +63,21 @@ class _RegProfileScreenState extends State<RegProfileScreen> {
       if (!_skills.contains(text)) _skills.add(text);
       _skillCtrl.clear();
     });
+  }
+
+  Future<void> _pickImage() async {
+    final picker = ImagePicker();
+    try {
+      final XFile? file = await picker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 80,
+      );
+      if (file != null) {
+        setState(() => _imagePath = file.path);
+      }
+    } catch (e) {
+      // ignore
+    }
   }
 
   void _removeSkill(int index) {
@@ -57,7 +101,11 @@ class _RegProfileScreenState extends State<RegProfileScreen> {
         'areas': _areasCtrl.text.trim(),
       };
 
-      // For now simply pop with result
+      // persist
+      StorageService.saveProfile(data);
+      if (_imagePath != null) StorageService.saveProfileImagePath(_imagePath!);
+
+      // Return to caller with result
       Navigator.of(context).pop(data);
     }
   }
@@ -100,24 +148,35 @@ class _RegProfileScreenState extends State<RegProfileScreen> {
             Center(
               child: Column(
                 children: [
-                  Container(
-                    width: 84,
-                    height: 84,
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black12,
-                          blurRadius: 8,
-                          offset: Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    child: const Icon(
-                      Icons.person,
-                      size: 44,
-                      color: Colors.black54,
+                  GestureDetector(
+                    onTap: _pickImage,
+                    child: Container(
+                      width: 84,
+                      height: 84,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                        boxShadow: const [
+                          BoxShadow(
+                            color: Colors.black12,
+                            blurRadius: 8,
+                            offset: Offset(0, 4),
+                          ),
+                        ],
+                        image: _imagePath != null
+                            ? DecorationImage(
+                                image: FileImage(File(_imagePath!)),
+                                fit: BoxFit.cover,
+                              )
+                            : null,
+                      ),
+                      child: _imagePath == null
+                          ? const Icon(
+                              Icons.person,
+                              size: 44,
+                              color: Colors.black54,
+                            )
+                          : null,
                     ),
                   ),
                 ],
@@ -146,7 +205,7 @@ class _RegProfileScreenState extends State<RegProfileScreen> {
                         child: DropdownButtonFormField<String>(
                           value: _education,
                           isExpanded: true,
-                          hint: const Text('Current Education Level'),
+                          // Show the selected education directly; no placeholder
                           decoration: const InputDecoration(
                             border: InputBorder.none,
                           ),

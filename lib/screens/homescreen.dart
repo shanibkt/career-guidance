@@ -1,208 +1,320 @@
+import 'package:career_guidence/screens/career.dart';
+import 'package:career_guidence/screens/learning_path.dart';
+import 'package:career_guidence/screens/profile.dart';
+import 'package:career_guidence/screens/reg_profile.dart';
+import 'package:career_guidence/screens/resume.dart';
 import 'package:flutter/material.dart';
-
 import '../models/user.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   final User? user;
 
   const HomeScreen({super.key, this.user});
 
   @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  int _currentIndex = 0;
+
+  @override
   Widget build(BuildContext context) {
-    final displayName = user?.fullName ?? user?.username ?? 'User';
-
     return Scaffold(
+      backgroundColor: const Color(0xFFE8F4FF),
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Header
-              const Text(
-                'AI Career Pathfinder',
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black,
-                ),
-              ),
-              const SizedBox(height: 20),
+        child: Column(
+          children: [
+            Expanded(child: _getSelectedPage()),
 
-              // Welcome section with dynamic name
-              Text(
-                'Hi, $displayName', // Using the displayName from user parameter
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.black,
-                ),
-              ),
-              const SizedBox(height: 8),
-
-              // Progress section
-              Row(
-                children: [
-                  const Text(
-                    'learning progress',
-                    style: TextStyle(fontSize: 14, color: Colors.grey),
-                  ),
-                  const SizedBox(width: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 2,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.blue[50],
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const Text(
-                      '60%',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.blue,
-                      ),
-                    ),
+            // Bottom Navigation Bar - Fixed
+            Container(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 10,
+                    offset: const Offset(0, -5),
                   ),
                 ],
               ),
-              const SizedBox(height: 8),
-
-              // Progress bar
-              LinearProgressIndicator(
-                value: 0.6,
-                backgroundColor: Colors.grey[300],
-                valueColor: const AlwaysStoppedAnimation<Color>(Colors.blue),
-                borderRadius: BorderRadius.circular(10),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: [
+                  _buildNavItem(Icons.home, 0),
+                  _buildNavItem(Icons.chat_bubble_outline, 1),
+                  _buildNavItem(Icons.person_outline, 2),
+                ],
               ),
-              const SizedBox(height: 20),
-
-              const Divider(height: 1, color: Colors.grey),
-              const SizedBox(height: 20),
-
-              // Career Quiz section
-              _buildSection(
-                icon: Icons.help_outline,
-                title: 'Career Quiz',
-                subtitle: 'Discover your ideal career path',
-                buttonText: 'Start',
-                onPressed: () {},
-              ),
-              const SizedBox(height: 20),
-
-              // Career Suggestions section
-              _buildSection(
-                icon: Icons.check_circle_outline,
-                title: 'Career suggestions',
-                subtitle: '3 New',
-                buttonText: 'View',
-                onPressed: () {},
-                hasBadge: true,
-              ),
-              const SizedBox(height: 20),
-
-              // Learning Path section
-              _buildSection(
-                icon: Icons.school_outlined,
-                title: 'Learning Path',
-                subtitle: 'Track your learning journey',
-                buttonText: '2 Check',
-                onPressed: () {},
-              ),
-              const SizedBox(height: 20),
-
-              // Resume Builder section
-              _buildSection(
-                icon: Icons.description_outlined,
-                title: 'Resume Builder',
-                subtitle: 'Create professional resumes',
-                buttonText: 'Build',
-                onPressed: () {},
-                showDoubleButton: true,
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
   }
 
-  Widget _buildSection({
-    required IconData icon,
-    required String title,
-    required String subtitle,
-    required String buttonText,
-    required VoidCallback onPressed,
-    bool hasBadge = false,
-    bool showDoubleButton = false,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.grey[50],
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey[200]!),
-      ),
-      child: Row(
+  Widget _getSelectedPage() {
+    switch (_currentIndex) {
+      case 0:
+        return _buildHomePage();
+      case 1:
+        return ResumeBuilderScreen();
+      case 2:
+        return ProfilePage(user: widget.user);
+      default:
+        return _buildHomePage();
+    }
+  }
+
+  Widget _buildHomePage() {
+    final displayName =
+        widget.user?.fullName ?? widget.user?.username ?? 'Name';
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(20.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: Colors.blue[50],
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Icon(icon, color: Colors.blue, size: 24),
+          // Header with profile
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'AI Career Pathfinder',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
+                ),
+              ),
+              // Profile avatar
+              CircleAvatar(
+                radius: 22,
+                backgroundColor: Colors.white,
+                child: Icon(Icons.person, color: Colors.grey[600], size: 28),
+              ),
+            ],
           ),
-          const SizedBox(width: 12),
-          Expanded(
+          const SizedBox(height: 20),
+
+          // Welcome section with name
+          Text(
+            'Hi, $displayName',
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w500,
+              color: Colors.black87,
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // Progress card with blue background
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0xFF4A7DFF), Color(0xFF5B8EFF)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.blue.withOpacity(0.3),
+                  blurRadius: 10,
+                  offset: const Offset(0, 5),
+                ),
+              ],
+            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.black,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  subtitle,
+                const Text(
+                  'learning progress 0%',
                   style: TextStyle(
                     fontSize: 14,
-                    color: hasBadge ? Colors.green : Colors.grey[600],
-                    fontWeight: hasBadge ? FontWeight.bold : FontWeight.normal,
+                    color: Colors.white,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                // Progress bar
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(10),
+                  child: LinearProgressIndicator(
+                    value: 0.0,
+                    backgroundColor: Colors.white.withOpacity(0.3),
+                    valueColor: const AlwaysStoppedAnimation<Color>(
+                      Colors.white,
+                    ),
+                    minHeight: 10,
                   ),
                 ),
               ],
             ),
           ),
-          if (showDoubleButton) ...[
-            _buildActionButton(buttonText, onPressed),
-            const SizedBox(width: 8),
-            _buildActionButton(buttonText, onPressed),
-          ] else
-            _buildActionButton(buttonText, onPressed),
+          const SizedBox(height: 24),
+
+          // Career Quiz section
+          _buildCard(
+            icon: Icons.help_outline,
+            title: 'Career Quiz',
+            buttonText: 'Start',
+            buttonColor: const Color(0xFFB8A67A),
+            onPressed: () {
+              Navigator.of(context).pushNamed('/quiz');
+            },
+          ),
+          const SizedBox(height: 16),
+
+          // Career suggestions section
+          _buildCard(
+            icon: Icons.school_outlined,
+            title: 'Career suggestions',
+            buttonText: '3 New',
+            buttonColor: const Color(0xFFB8A67A),
+            onPressed: () {
+              // Navigate to your career suggestions page
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const CareerSuggestionsPage(),
+                ),
+              );
+            },
+          ),
+          const SizedBox(height: 16),
+
+          // Learning Path section
+          _buildCard(
+            icon: Icons.route_outlined,
+            title: 'Learning Path',
+            buttonText: 'Check',
+            buttonColor: const Color(0xFFB8A67A),
+            onPressed: () {
+              // Navigate to your learning path page
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const LearningPathPage()),
+              );
+            },
+          ),
+          const SizedBox(height: 16),
+
+          // Resume Builder section
+          _buildCard(
+            icon: Icons.description_outlined,
+            title: 'Resume Builder',
+            buttonText: 'Build',
+            buttonColor: const Color(0xFFB8A67A),
+            onPressed: () {
+              // Navigate to your resume builder page
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const ResumeBuilderScreen()),
+              );
+            },
+          ),
+          const SizedBox(height: 20),
         ],
       ),
     );
   }
 
-  Widget _buildActionButton(String text, VoidCallback onPressed) {
-    return ElevatedButton(
-      onPressed: onPressed,
-      style: ElevatedButton.styleFrom(
-        backgroundColor: Colors.blue,
-        foregroundColor: Colors.white,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+  Widget _buildCard({
+    required IconData icon,
+    required String title,
+    required String buttonText,
+    required Color buttonColor,
+    required VoidCallback onPressed,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
-      child: Text(
-        text,
-        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+      child: Row(
+        children: [
+          // Icon
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: Colors.grey[100],
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(icon, color: Colors.black87, size: 24),
+          ),
+          const SizedBox(width: 12),
+          // Title
+          Expanded(
+            child: Text(
+              title,
+              style: const TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+                color: Colors.black87,
+              ),
+            ),
+          ),
+          // Button
+          Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: onPressed,
+              borderRadius: BorderRadius.circular(20),
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  color: buttonColor,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  buttonText,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNavItem(IconData icon, int index) {
+    bool isActive = _currentIndex == index;
+
+    return InkWell(
+      onTap: () {
+        setState(() {
+          _currentIndex = index;
+        });
+      },
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+        decoration: BoxDecoration(
+          color: isActive ? Colors.black87 : Colors.transparent,
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Icon(
+          icon,
+          color: isActive ? Colors.white : Colors.black54,
+          size: 24,
+        ),
       ),
     );
   }

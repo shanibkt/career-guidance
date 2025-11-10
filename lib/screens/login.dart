@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../services/auth_service.dart';
+import '../services/storage_service.dart';
 
 /// Clean, single implementation of the LoginPage.
 /// Uses a Form with validation, TextEditingControllers and
@@ -256,28 +257,40 @@ class _LoginPageState extends State<LoginPage> {
                 final email = _emailCtrl.text.trim();
                 final password = _passwordCtrl.text;
 
-                final result = await AuthService.login(email, password);
+                try {
+                  final result = await AuthService.login(email, password);
 
-                setState(() => _isLoading = false);
+                  if (result.success &&
+                      result.token != null &&
+                      result.user != null) {
+                    // persist token in secure storage (existing) and shared prefs
+                    await _storage.write(
+                      key: 'auth_token',
+                      value: result.token,
+                    );
+                    // Also save to StorageService so main.dart's SharedPreferences check sees it
+                    await StorageService.saveAuthToken(result.token!);
 
-                if (result.success &&
-                    result.token != null &&
-                    result.user != null) {
-                  // persist token
-                  await _storage.write(key: 'auth_token', value: result.token);
-
-                  if (!mounted) return;
-                  Navigator.of(context).pushReplacement(
-                    MaterialPageRoute(
-                      builder: (_) => HomeScreen(user: result.user!),
-                    ),
-                  );
-                } else {
-                  final msg = result.message ?? 'Login failed';
+                    if (!mounted) return;
+                    Navigator.of(context).pushReplacement(
+                      MaterialPageRoute(
+                        builder: (_) => HomeScreen(user: result.user!),
+                      ),
+                    );
+                  } else {
+                    final msg = result.message ?? 'Login failed';
+                    if (!mounted) return;
+                    ScaffoldMessenger.of(
+                      context,
+                    ).showSnackBar(SnackBar(content: Text(msg)));
+                  }
+                } catch (e) {
                   if (!mounted) return;
                   ScaffoldMessenger.of(
                     context,
-                  ).showSnackBar(SnackBar(content: Text(msg)));
+                  ).showSnackBar(SnackBar(content: Text('Login error: $e')));
+                } finally {
+                  if (mounted) setState(() => _isLoading = false);
                 }
               },
         style: ElevatedButton.styleFrom(

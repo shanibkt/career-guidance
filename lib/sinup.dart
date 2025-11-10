@@ -197,8 +197,9 @@ class _SignUpScreenState extends State<SignUpScreen> {
                         keyboardType: TextInputType.emailAddress,
                         decoration: _inputDecoration('Email'),
                         validator: (v) {
-                          if (v == null || v.trim().isEmpty)
+                          if (v == null || v.trim().isEmpty) {
                             return 'Enter email';
+                          }
                           final re = RegExp(r'^[^@]+@[^@]+\.[^@]+');
                           return re.hasMatch(v) ? null : 'Enter valid email';
                         },
@@ -228,8 +229,9 @@ class _SignUpScreenState extends State<SignUpScreen> {
                         decoration: _inputDecoration('Password'),
                         validator: (v) {
                           if (v == null || v.isEmpty) return 'Enter password';
-                          if (v.length < 6)
+                          if (v.length < 6) {
                             return 'Password must be at least 6 characters';
+                          }
                           return null;
                         },
                       ),
@@ -241,8 +243,9 @@ class _SignUpScreenState extends State<SignUpScreen> {
                         decoration: _inputDecoration('Confirm password'),
                         validator: (v) {
                           if (v == null || v.isEmpty) return 'Confirm password';
-                          if (v != _passwordCtrl.text)
+                          if (v != _passwordCtrl.text) {
                             return 'Passwords do not match';
+                          }
                           return null;
                         },
                       ),
@@ -278,7 +281,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                       const SizedBox(height: 12),
 
                       DropdownButtonFormField<String>(
-                        value: _gender,
+                        initialValue: _gender,
                         items: const [
                           DropdownMenuItem(
                             value: 'Gender',
