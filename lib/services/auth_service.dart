@@ -1,9 +1,8 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:flutter/foundation.dart' show kIsWeb;
-import 'package:http/http.dart' as http;
 import 'package:flutter/foundation.dart' show debugPrint;
+import 'package:http/http.dart' as http;
 import '../models/user.dart';
 
 class AuthResult {
@@ -16,37 +15,70 @@ class AuthResult {
 }
 
 class AuthService {
-  // Base URL - change if needed
-  static const String _baseUrl = 'http://localhost:5001';
+  // Base URL - Use PC's IP address for both emulator and physical devices
+  static const String _baseUrl = 'http://192.168.1.101:5001';
 
-  // On Android emulators `localhost` refers to the emulator itself; use 10.0.2.2
   static String get _effectiveBaseUrl {
-    try {
-      if (!kIsWeb && Platform.isAndroid) return 'http://10.0.2.2:5001';
-    } catch (_) {}
+    debugPrint('🔵 AuthService using base URL: $_baseUrl');
     return _baseUrl;
   }
 
+  // Public method to get API URL for debugging
+  static String getApiUrl() => _baseUrl;
+
   /// POST /api/auth/login
   /// body: { "email": "...", "password": "..." }
-  /// expected success response: { "token": "<jwt>", "user": { ... } }
+  /// expected success response (flexible):
+  /// - { "token": "<jwt>", "user": { ... } }
+  /// - { "accessToken": "<jwt>", "data": { ... } }
+  /// - { "access_token": "<jwt>", "result": { ... } }
   static Future<AuthResult> login(String email, String password) async {
     final uri = Uri.parse('$_effectiveBaseUrl/api/auth/login');
 
     try {
+      // Debug: log request
+      try {
+        debugPrint('AuthService.login -> POST $uri');
+        debugPrint(
+          'AuthService.login payload: ${json.encode({'email': email, 'password': password})}',
+        );
+      } catch (_) {}
+
       final resp = await http.post(
         uri,
         headers: {'Content-Type': 'application/json'},
         body: json.encode({'email': email, 'password': password}),
       );
 
+      // Debug: log response
+      try {
+        debugPrint('AuthService.login <- status ${resp.statusCode}');
+        debugPrint('AuthService.login body: ${resp.body}');
+      } catch (_) {}
+
       if (resp.statusCode == 200) {
         final Map<String, dynamic> body = json.decode(resp.body);
-        final token = body['token'] as String?;
-        final userJson = body['user'] as Map<String, dynamic>?;
+
+        // Be tolerant of token and user keys, similar to signup()
+        String? token = body['token'] as String?;
+        token ??= body['accessToken'] as String?;
+        token ??= body['access_token'] as String?;
+
+        Map<String, dynamic>? userJson;
+        if (body['user'] is Map<String, dynamic>) {
+          userJson = body['user'] as Map<String, dynamic>;
+        }
+        userJson ??= (body['data'] is Map<String, dynamic>)
+            ? body['data'] as Map<String, dynamic>
+            : null;
+        userJson ??= (body['result'] is Map<String, dynamic>)
+            ? body['result'] as Map<String, dynamic>
+            : null;
+
         final user = userJson != null ? User.fromJson(userJson) : null;
 
-        if (token != null && user != null) {
+        // If either token or user is present, return success with what we have
+        if (token != null || user != null) {
           return AuthResult(success: true, token: token, user: user);
         }
 
@@ -82,6 +114,57 @@ class AuthService {
       return AuthResult(
         success: false,
         message: 'Bad response format: ${e.message}',
+      );
+    } catch (e) {
+      return AuthResult(success: false, message: e.toString());
+    }
+  }
+
+  /// POST /api/auth/forgot-password
+  /// Sends email for password reset
+  /// { "email": "user@example.com" }
+  static Future<AuthResult> forgotPassword(String email) async {
+    final uri = Uri.parse('$_effectiveBaseUrl/api/auth/forgot-password');
+
+    try {
+      debugPrint('AuthService.forgotPassword -> POST $uri');
+      debugPrint('AuthService.forgotPassword email: $email');
+
+      final resp = await http.post(
+        uri,
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({'email': email}),
+      );
+
+      debugPrint('AuthService.forgotPassword <- status ${resp.statusCode}');
+      debugPrint('AuthService.forgotPassword body: ${resp.body}');
+
+      if (resp.statusCode == 200 || resp.statusCode == 201) {
+        final Map<String, dynamic> body = json.decode(resp.body);
+        final message =
+            body['message']?.toString() ?? 'Reset link sent to your email';
+        return AuthResult(success: true, message: message);
+      }
+
+      // Handle error
+      String message = 'Failed to send reset link (${resp.statusCode})';
+      try {
+        final Map<String, dynamic> body = json.decode(resp.body);
+        if (body.containsKey('message')) {
+          message = body['message'].toString();
+        } else if (body.containsKey('error')) {
+          message = body['error'].toString();
+        }
+      } catch (_) {
+        message = resp.body.toString();
+      }
+
+      return AuthResult(success: false, message: message);
+    } on SocketException catch (e) {
+      return AuthResult(
+        success: false,
+        message:
+            'Connection refused — is the API running at $_effectiveBaseUrl? (${e.message})',
       );
     } catch (e) {
       return AuthResult(success: false, message: e.toString());

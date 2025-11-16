@@ -2,9 +2,14 @@ import 'package:flutter/material.dart';
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
 import '../services/storage_service.dart';
+import '../services/profile_service.dart';
+import '../models/user.dart';
+import 'homescreen.dart';
 
 class RegProfileScreen extends StatefulWidget {
-  const RegProfileScreen({super.key});
+  final bool isFromSignup;
+
+  const RegProfileScreen({super.key, this.isFromSignup = false});
 
   @override
   State<RegProfileScreen> createState() => _RegProfileScreenState();
@@ -12,9 +17,19 @@ class RegProfileScreen extends StatefulWidget {
 
 class _RegProfileScreenState extends State<RegProfileScreen> {
   final _formKey = GlobalKey<FormState>();
+
+  // User fields (from database)
+  final _fullNameCtrl = TextEditingController();
+  final _usernameCtrl = TextEditingController();
+  final _emailCtrl = TextEditingController();
+
+  // Profile fields
   String? _education;
-  final List<String> _quickLevels = ['+2', 'Bachelor', 'Master'];
-  int _selectedQuick = -1;
+
+  final _phoneCtrl = TextEditingController();
+  final _ageCtrl = TextEditingController();
+  String? _gender;
+  final List<String> _genders = ['Male', 'Female', 'Other'];
 
   // initial/default values will be set in initState below when loading saved profile
 
@@ -27,27 +42,52 @@ class _RegProfileScreenState extends State<RegProfileScreen> {
 
   @override
   void dispose() {
+    _fullNameCtrl.dispose();
+    _usernameCtrl.dispose();
+    _emailCtrl.dispose();
     _fieldCtrl.dispose();
     _skillCtrl.dispose();
     _areasCtrl.dispose();
+    _phoneCtrl.dispose();
+    _ageCtrl.dispose();
     super.dispose();
   }
 
   @override
   void initState() {
     super.initState();
+    // Load saved user data
+    StorageService.loadUser().then((userMap) {
+      if (userMap != null) {
+        setState(() {
+          _fullNameCtrl.text = userMap['fullName'] ?? '';
+          _usernameCtrl.text = userMap['username'] ?? '';
+          _emailCtrl.text = userMap['email'] ?? '';
+        });
+      }
+    });
+
     // Load saved profile if any
     StorageService.loadProfile().then((map) {
       if (map != null) {
         setState(() {
-          _education = map['education'] as String? ?? _education;
-          _fieldCtrl.text = map['field'] as String? ?? '';
+          // Support both old and new column names for backward compatibility
+          _education =
+              (map['educationLevel'] ?? map['education']) as String? ??
+              _education;
+          _fieldCtrl.text =
+              (map['fieldOfStudy'] ?? map['field'])?.toString() ?? '';
+          _phoneCtrl.text =
+              (map['phoneNumber'] ?? map['phone'])?.toString() ?? '';
+          _ageCtrl.text = map['age']?.toString() ?? '';
+          _gender = map['gender'] as String? ?? _gender;
           final skills = map['skills'];
           if (skills is List) {
             _skills.clear();
             _skills.addAll(skills.map((e) => e.toString()));
           }
-          _areasCtrl.text = map['areas'] as String? ?? '';
+          _areasCtrl.text =
+              (map['areasOfInterest'] ?? map['areas'])?.toString() ?? '';
         });
       }
     });
@@ -84,29 +124,164 @@ class _RegProfileScreenState extends State<RegProfileScreen> {
     setState(() => _skills.removeAt(index));
   }
 
-  void _onQuickSelect(int index) {
-    setState(() {
-      _selectedQuick = index;
-      _education = _quickLevels[index];
-    });
-  }
-
-  void _save() {
+  Future<void> _save() async {
     if (_formKey.currentState?.validate() ?? true) {
-      // collect data
-      final data = {
-        'education': _education,
-        'field': _fieldCtrl.text.trim(),
-        'skills': _skills,
-        'areas': _areasCtrl.text.trim(),
-      };
+      // Show loading indicator
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => const Center(child: CircularProgressIndicator()),
+      );
 
-      // persist
-      StorageService.saveProfile(data);
-      if (_imagePath != null) StorageService.saveProfileImagePath(_imagePath!);
+      try {
+        // Prepare user data (full name, username, email)
+        final userData = {
+          'fullName': _fullNameCtrl.text.trim(),
+          'username': _usernameCtrl.text.trim(),
+          'email': _emailCtrl.text.trim(),
+        };
 
-      // Return to caller with result
-      Navigator.of(context).pop(data);
+        // Prepare profile data - match backend column names
+        final ageText = _ageCtrl.text.trim();
+        final profileData = <String, dynamic>{
+          'educationLevel': _education,
+          'phoneNumber': _phoneCtrl.text.trim(),
+          'age': ageText.isNotEmpty ? int.tryParse(ageText) : null,
+          'gender': _gender,
+          'fieldOfStudy': _fieldCtrl.text.trim(),
+          'skills': _skills,
+          'areasOfInterest': _areasCtrl.text.trim(),
+        };
+        // Remove null and empty values
+        profileData.removeWhere(
+          (key, value) =>
+              value == null ||
+              (value is String && value.isEmpty) ||
+              (value is List && value.isEmpty),
+        );
+
+        // Try to sync with backend if logged in
+        final token = await StorageService.loadAuthToken();
+        final existingUser = await StorageService.loadUser();
+        final userId = existingUser?['id'] as int?;
+
+        if (token != null && userId != null) {
+          // Update user fields on backend
+          final userSuccess = await ProfileService.updateUser(
+            userId,
+            token,
+            userData,
+          );
+
+          // Update profile fields on backend
+          final profileSuccess = await ProfileService.updateProfile(
+            userId,
+            token,
+            profileData,
+          );
+
+          // Upload image if changed
+          debugPrint('Image path check: _imagePath = $_imagePath');
+          if (_imagePath != null && _imagePath!.isNotEmpty) {
+            debugPrint('Attempting to upload profile image...');
+            final uploadedPath = await ProfileService.uploadProfileImage(
+              userId,
+              token,
+              _imagePath!,
+            );
+            if (uploadedPath != null) {
+              debugPrint(
+                '✅ Profile image uploaded successfully: $uploadedPath',
+              );
+            } else {
+              debugPrint('❌ Profile image upload failed - check logs above');
+            }
+          } else {
+            debugPrint('⚠️ No image selected - skipping upload');
+          }
+
+          if (!userSuccess || !profileSuccess) {
+            debugPrint('Backend sync failed - saving locally only');
+          }
+        }
+
+        // Always save locally (as cache and fallback)
+        // Prepare local storage data - use backend column names for consistency
+        final localProfileData = <String, dynamic>{
+          if (_education != null && _education!.isNotEmpty)
+            'educationLevel': _education,
+          if (_phoneCtrl.text.trim().isNotEmpty)
+            'phoneNumber': _phoneCtrl.text.trim(),
+          if (_ageCtrl.text.trim().isNotEmpty) 'age': _ageCtrl.text.trim(),
+          if (_gender != null && _gender!.isNotEmpty) 'gender': _gender,
+          if (_fieldCtrl.text.trim().isNotEmpty)
+            'fieldOfStudy': _fieldCtrl.text.trim(),
+          if (_skills.isNotEmpty) 'skills': List<String>.from(_skills),
+          if (_areasCtrl.text.trim().isNotEmpty)
+            'areasOfInterest': _areasCtrl.text.trim(),
+        };
+
+        final localUserData = <String, dynamic>{
+          'fullName': _fullNameCtrl.text.trim(),
+          'username': _usernameCtrl.text.trim(),
+          'email': _emailCtrl.text.trim(),
+        };
+
+        if (existingUser != null && existingUser['id'] != null) {
+          localUserData['id'] = existingUser['id'];
+        }
+
+        await StorageService.saveUser(localUserData);
+        await StorageService.saveProfile(localProfileData);
+        if (_imagePath != null && _imagePath!.isNotEmpty) {
+          await StorageService.saveProfileImagePath(_imagePath!);
+        }
+
+        debugPrint(
+          'RegProfile._save - saved localProfileData: $localProfileData',
+        );
+        debugPrint('RegProfile._save - saved localUserData: $localUserData');
+
+        if (!mounted) return;
+        Navigator.of(context).pop(); // Close loading dialog
+
+        // Check if we're coming from signup or editing existing profile
+        if (widget.isFromSignup) {
+          // Coming from signup - navigate to home
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Profile completed successfully!')),
+          );
+
+          // Create user object from saved data
+          final savedUser = await StorageService.loadUser();
+          if (savedUser != null && savedUser['id'] != null) {
+            final user = User(
+              id: savedUser['id'] as int,
+              fullName: savedUser['fullName'] as String,
+              username: savedUser['username'] as String,
+              email: savedUser['email'] as String,
+            );
+            Navigator.of(context).pushReplacement(
+              MaterialPageRoute(builder: (_) => HomeScreen(user: user)),
+            );
+          } else {
+            // Fallback: navigate to home without user (shouldn't happen)
+            Navigator.of(context).pushReplacement(
+              MaterialPageRoute(builder: (_) => const HomeScreen()),
+            );
+          }
+        } else {
+          // Editing existing profile - return to profile page
+          Navigator.of(context).pop(localProfileData);
+        }
+      } catch (e) {
+        debugPrint('Error saving profile: $e');
+        if (!mounted) return;
+        Navigator.of(context).pop(); // Close loading dialog
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Error saving profile')));
+      }
     }
   }
 
@@ -192,6 +367,79 @@ class _RegProfileScreenState extends State<RegProfileScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
+                      // Full Name
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: radius,
+                        ),
+                        child: TextFormField(
+                          controller: _fullNameCtrl,
+                          decoration: const InputDecoration(
+                            border: InputBorder.none,
+                            hintText: 'Full Name',
+                            prefixIcon: Icon(Icons.person),
+                          ),
+                          validator: (v) => (v == null || v.trim().isEmpty)
+                              ? 'Enter your full name'
+                              : null,
+                        ),
+                      ),
+
+                      const SizedBox(height: 12),
+
+                      // Username
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: radius,
+                        ),
+                        child: TextFormField(
+                          controller: _usernameCtrl,
+                          decoration: const InputDecoration(
+                            border: InputBorder.none,
+                            hintText: 'Username',
+                            prefixIcon: Icon(Icons.account_circle),
+                          ),
+                          validator: (v) => (v == null || v.trim().isEmpty)
+                              ? 'Enter your username'
+                              : null,
+                        ),
+                      ),
+
+                      const SizedBox(height: 12),
+
+                      // Email
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: radius,
+                        ),
+                        child: TextFormField(
+                          controller: _emailCtrl,
+                          keyboardType: TextInputType.emailAddress,
+                          decoration: const InputDecoration(
+                            border: InputBorder.none,
+                            hintText: 'Email',
+                            prefixIcon: Icon(Icons.email),
+                          ),
+                          validator: (v) {
+                            if (v == null || v.trim().isEmpty) {
+                              return 'Enter your email';
+                            }
+                            if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(v)) {
+                              return 'Enter a valid email';
+                            }
+                            return null;
+                          },
+                        ),
+                      ),
+
+                      const SizedBox(height: 12),
+
                       // Education dropdown
                       Container(
                         padding: const EdgeInsets.symmetric(
@@ -203,11 +451,12 @@ class _RegProfileScreenState extends State<RegProfileScreen> {
                           borderRadius: radius,
                         ),
                         child: DropdownButtonFormField<String>(
-                          value: _education,
+                          initialValue: _education,
                           isExpanded: true,
-                          // Show the selected education directly; no placeholder
                           decoration: const InputDecoration(
                             border: InputBorder.none,
+                            hintText: 'Education Level',
+                            prefixIcon: Icon(Icons.school),
                           ),
                           items: <String>['+2', 'Bachelor', 'Master', 'PhD']
                               .map(
@@ -224,32 +473,76 @@ class _RegProfileScreenState extends State<RegProfileScreen> {
 
                       const SizedBox(height: 12),
 
-                      // Quick choices
+                      // Phone number
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: radius,
+                        ),
+                        child: TextFormField(
+                          controller: _phoneCtrl,
+                          keyboardType: TextInputType.phone,
+                          decoration: const InputDecoration(
+                            border: InputBorder.none,
+                            hintText: 'Phone number',
+                          ),
+                        ),
+                      ),
+
+                      const SizedBox(height: 12),
+
+                      // Age and Gender row
                       Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: List.generate(_quickLevels.length, (i) {
-                          final sel = _selectedQuick == i;
-                          return GestureDetector(
-                            onTap: () => _onQuickSelect(i),
+                        children: [
+                          Expanded(
+                            flex: 1,
                             child: Container(
-                              margin: const EdgeInsets.symmetric(horizontal: 8),
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 8,
-                              ),
+                              padding: const EdgeInsets.all(12),
                               decoration: BoxDecoration(
-                                color: sel ? Colors.white : Colors.transparent,
-                                borderRadius: BorderRadius.circular(8),
+                                color: Colors.white,
+                                borderRadius: radius,
                               ),
-                              child: Text(
-                                _quickLevels[i],
-                                style: TextStyle(
-                                  color: sel ? Colors.black : Colors.black87,
+                              child: TextFormField(
+                                controller: _ageCtrl,
+                                keyboardType: TextInputType.number,
+                                decoration: const InputDecoration(
+                                  border: InputBorder.none,
+                                  hintText: 'Age',
                                 ),
                               ),
                             ),
-                          );
-                        }),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            flex: 1,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: radius,
+                              ),
+                              child: DropdownButtonFormField<String>(
+                                initialValue: _gender,
+                                decoration: const InputDecoration(
+                                  border: InputBorder.none,
+                                ),
+                                hint: const Text('Gender'),
+                                items: _genders
+                                    .map(
+                                      (g) => DropdownMenuItem(
+                                        value: g,
+                                        child: Text(g),
+                                      ),
+                                    )
+                                    .toList(),
+                                onChanged: (v) => setState(() => _gender = v),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
 
                       const SizedBox(height: 18),

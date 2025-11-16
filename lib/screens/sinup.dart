@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 // secure storage not used here; keep signup flow simple and navigate to login
 
 import '../services/auth_service.dart';
+import '../services/storage_service.dart';
 import 'login.dart';
+import 'reg_profile.dart';
 
 class SignUpScreen extends StatefulWidget {
   const SignUpScreen({super.key});
@@ -114,19 +116,114 @@ class _SignUpScreenState extends State<SignUpScreen> {
     try {
       final result = await AuthService.signup(payload);
       if (result.success) {
-        // Don't persist token on signup; direct user to login to authenticate.
+        // Save basic signup data (user info and initial profile data)
+        if (result.user != null) {
+          await StorageService.saveUser({
+            'id': result.user!.id,
+            'fullName': result.user!.fullName,
+            'username': result.user!.username,
+            'email': result.user!.email,
+          });
+        }
+
+        // Save auth token if returned
+        if (result.token != null) {
+          await StorageService.saveAuthToken(result.token!);
+        }
+
+        // Save initial profile data from signup - use backend column names
+        final profileData = {
+          'phoneNumber': payload['phone'],
+          'age': payload['age'],
+          'gender': payload['gender'],
+          'dob': payload['dob'],
+        };
+        profileData.removeWhere((key, value) => value == null);
+        if (profileData.isNotEmpty) {
+          await StorageService.saveProfile(profileData);
+        }
+
+        // Navigate to complete profile page
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Signup successful — please sign in')),
+          const SnackBar(
+            content: Text('Signup successful! Complete your profile'),
+          ),
         );
-        Navigator.of(
-          context,
-        ).pushReplacement(MaterialPageRoute(builder: (_) => const LoginPage()));
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(
+            builder: (_) => const RegProfileScreen(isFromSignup: true),
+          ),
+        );
       } else {
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(result.message ?? 'Signup failed')),
-        );
+        // Signup failed - check if it's a partial success (user created but profile failed)
+        if (result.message?.contains('Unhandled type') == true ||
+            result.message?.contains('already exists') == true) {
+          // Backend error but user was created - try to auto-login and proceed
+          try {
+            final loginResult = await AuthService.login(
+              payload['email'] as String,
+              payload['password'] as String,
+            );
+
+            if (loginResult.success && loginResult.user != null) {
+              // Login successful - save data and proceed to profile completion
+              await StorageService.saveUser({
+                'id': loginResult.user!.id,
+                'fullName': loginResult.user!.fullName,
+                'username': loginResult.user!.username,
+                'email': loginResult.user!.email,
+              });
+
+              if (loginResult.token != null) {
+                await StorageService.saveAuthToken(loginResult.token!);
+              }
+
+              // Save initial profile data
+              final profileData = {
+                'phoneNumber': payload['phone'],
+                'age': payload['age'],
+                'gender': payload['gender'],
+                'dob': payload['dob'],
+              };
+              profileData.removeWhere((key, value) => value == null);
+              if (profileData.isNotEmpty) {
+                await StorageService.saveProfile(profileData);
+              }
+
+              if (!mounted) return;
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Account verified! Complete your profile'),
+                ),
+              );
+              Navigator.of(context).pushReplacement(
+                MaterialPageRoute(
+                  builder: (_) => const RegProfileScreen(isFromSignup: true),
+                ),
+              );
+              return;
+            }
+          } catch (_) {
+            // Auto-login failed, show message
+          }
+
+          // Fallback: ask user to login manually
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'Account created! Please login to complete your profile.',
+              ),
+              duration: Duration(seconds: 3),
+            ),
+          );
+        } else {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(result.message ?? 'Signup failed')),
+          );
+        }
       }
     } catch (e) {
       if (!mounted) return;

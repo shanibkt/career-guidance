@@ -147,11 +147,7 @@ class _LoginPageState extends State<LoginPage> {
                       alignment: Alignment.centerRight,
                       child: TextButton(
                         onPressed: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Forgot password pressed'),
-                            ),
-                          );
+                          Navigator.of(context).pushNamed('/forgot-password');
                         },
                         child: const Text(
                           'Forgot Password?',
@@ -270,6 +266,8 @@ class _LoginPageState extends State<LoginPage> {
                     );
                     // Also save to StorageService so main.dart's SharedPreferences check sees it
                     await StorageService.saveAuthToken(result.token!);
+                    // Save user data for persistence
+                    await StorageService.saveUser(result.user!.toJson());
 
                     if (!mounted) return;
                     Navigator.of(context).pushReplacement(

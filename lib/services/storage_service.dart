@@ -6,6 +6,7 @@ class StorageService {
   static const _profileKey = 'profile_data';
   static const _profileImageKey = 'profile_image';
   static const _authTokenKey = 'auth_token';
+  static const _userKey = 'user_data';
 
   /// Save profile map as JSON
   static Future<void> saveProfile(Map<String, dynamic> profile) async {
@@ -48,10 +49,29 @@ class StorageService {
     return prefs.getString(_authTokenKey);
   }
 
+  /// Save authenticated user JSON map
+  static Future<void> saveUser(Map<String, dynamic> user) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_userKey, json.encode(user));
+  }
+
+  /// Load authenticated user map or null
+  static Future<Map<String, dynamic>?> loadUser() async {
+    final prefs = await SharedPreferences.getInstance();
+    final s = prefs.getString(_userKey);
+    if (s == null) return null;
+    try {
+      return json.decode(s) as Map<String, dynamic>;
+    } catch (_) {
+      return null;
+    }
+  }
+
   static Future<void> clearAll() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_profileKey);
     await prefs.remove(_profileImageKey);
     await prefs.remove(_authTokenKey);
+    await prefs.remove(_userKey);
   }
 }

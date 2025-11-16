@@ -1,10 +1,7 @@
-// Flutter Mobile Resume Builder
-// Single-file Flutter widget (lib/screens/resume_builder.dart)
-
 import 'package:flutter/material.dart';
 
 class ResumeBuilderScreen extends StatefulWidget {
-  const ResumeBuilderScreen({Key? key}) : super(key: key);
+  const ResumeBuilderScreen({super.key});
 
   @override
   State<ResumeBuilderScreen> createState() => _ResumeBuilderScreenState();
@@ -15,17 +12,33 @@ class _ResumeBuilderScreenState extends State<ResumeBuilderScreen> {
   final _titleController = TextEditingController(text: 'Software Engineer');
   final _emailController = TextEditingController(text: 'jane.doe@email.com');
   final _phoneController = TextEditingController(text: '+91 98765 43210');
+  final _locationController = TextEditingController(text: 'Mumbai, India');
+  final _linkedinController = TextEditingController(
+    text: 'linkedin.com/in/janedoe',
+  );
   final _summaryController = TextEditingController(
     text:
-        'Passionate developer with experience in Flutter, React and backend integration.',
+        'Passionate software engineer with 3+ years of experience in mobile app development. Specialized in Flutter, React, and backend integration. Proven track record of delivering high-quality applications.',
   );
 
-  List<String> skills = ['Flutter', 'Dart', 'Firebase'];
+  List<String> skills = [
+    'Flutter',
+    'Dart',
+    'Firebase',
+    'React',
+    'Node.js',
+    'SQL',
+  ];
   List<Experience> experiences = [
     Experience(
-      role: 'Frontend Developer',
-      company: 'Techify',
+      role: 'Senior Flutter Developer',
+      company: 'Techify Solutions',
       period: '2022 - Present',
+    ),
+    Experience(
+      role: 'Frontend Developer',
+      company: 'Digital Innovations',
+      period: '2020 - 2022',
     ),
   ];
 
@@ -35,6 +48,8 @@ class _ResumeBuilderScreenState extends State<ResumeBuilderScreen> {
     _titleController.dispose();
     _emailController.dispose();
     _phoneController.dispose();
+    _locationController.dispose();
+    _linkedinController.dispose();
     _summaryController.dispose();
     super.dispose();
   }
@@ -50,25 +65,27 @@ class _ResumeBuilderScreenState extends State<ResumeBuilderScreen> {
   }
 
   void saveDraft() {
-    // TODO: implement persistence (local DB or cloud)
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('Preview')));
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Resume preview shown below'),
+        backgroundColor: Colors.blue,
+      ),
+    );
   }
 
   void exportPdf() {
-    // TODO: integrate printing or pdf package (e.g., printing, pdf)
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Export PDF (not implemented)')),
+      const SnackBar(
+        content: Text('PDF export feature coming soon!'),
+        backgroundColor: Colors.blue,
+      ),
     );
   }
 
   void aiImproveSummary() {
-    // Placeholder simple improvement — integrate real AI later
     setState(
       () => _summaryController.text =
-          _summaryController.text +
-          ' Enthusiastic team player focused on delivering impact.',
+          '${_summaryController.text} Demonstrated expertise in delivering scalable solutions and collaborating with cross-functional teams.',
     );
   }
 
@@ -379,10 +396,10 @@ class ExperienceCard extends StatefulWidget {
   final ValueChanged<Experience> onChanged;
 
   const ExperienceCard({
-    Key? key,
+    super.key,
     required this.experience,
     required this.onChanged,
-  }) : super(key: key);
+  });
 
   @override
   State<ExperienceCard> createState() => _ExperienceCardState();
@@ -456,12 +473,12 @@ class SkillChip extends StatefulWidget {
   final VoidCallback onRemove;
 
   const SkillChip({
-    Key? key,
+    super.key,
     required this.index,
     required this.value,
     required this.onChanged,
     required this.onRemove,
-  }) : super(key: key);
+  });
 
   @override
   State<SkillChip> createState() => _SkillChipState();
@@ -517,7 +534,7 @@ class _SkillChipState extends State<SkillChip> {
 
 class SectionTitle extends StatelessWidget {
   final String title;
-  const SectionTitle({Key? key, required this.title}) : super(key: key);
+  const SectionTitle({super.key, required this.title});
 
   @override
   Widget build(BuildContext context) {
@@ -535,12 +552,12 @@ class ThemedTextField extends StatelessWidget {
   final ValueChanged<String>? onChanged;
 
   const ThemedTextField({
-    Key? key,
+    super.key,
     required this.controller,
     required this.hint,
     this.keyboardType = TextInputType.text,
     this.onChanged,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -570,10 +587,10 @@ class ThemedMultiLineField extends StatelessWidget {
   final String hint;
 
   const ThemedMultiLineField({
-    Key? key,
+    super.key,
     required this.controller,
     required this.hint,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

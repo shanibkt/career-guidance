@@ -96,8 +96,9 @@ class _QuizScreenState extends State<QuizScreen> {
                   child: LinearProgressIndicator(
                     value: currentQuestion / totalQuestions,
                     backgroundColor: Colors.grey[300],
-                    valueColor:
-                        AlwaysStoppedAnimation<Color>(Colors.blue[700]!),
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                      Colors.blue[700]!,
+                    ),
                     minHeight: 6,
                   ),
                 ),
@@ -146,8 +147,10 @@ class _QuizScreenState extends State<QuizScreen> {
                     ),
                     child: const Text(
                       'Next',
-                      style:
-                          TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
                 ),

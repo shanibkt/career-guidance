@@ -1,10 +1,13 @@
+import 'dart:io';
 import 'package:career_guidence/screens/career.dart';
+import 'package:career_guidence/screens/chat.dart';
 import 'package:career_guidence/screens/learning_path.dart';
 import 'package:career_guidence/screens/profile.dart';
-import 'package:career_guidence/screens/reg_profile.dart';
-import 'package:career_guidence/screens/resume.dart';
+import 'package:career_guidence/screens/resume_builder.dart';
 import 'package:flutter/material.dart';
 import '../models/user.dart';
+import '../services/storage_service.dart';
+import '../services/profile_service.dart';
 
 class HomeScreen extends StatefulWidget {
   final User? user;
@@ -17,6 +20,60 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int _currentIndex = 0;
+  User? _cachedUser;
+  Map<String, dynamic>? _cachedProfile;
+  String? _profileImagePath;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSaved();
+  }
+
+  Future<void> _loadSaved() async {
+    // show any user passed via constructor immediately
+    setState(() {
+      _cachedUser = widget.user;
+    });
+
+    final userMap = await StorageService.loadUser();
+    final profile = await StorageService.loadProfile();
+    final imagePath = await StorageService.loadProfileImagePath();
+
+    setState(() {
+      _cachedUser = userMap != null
+          ? User.fromJson(userMap)
+          : (_cachedUser ?? widget.user);
+      _cachedProfile = profile;
+      _profileImagePath = imagePath;
+    });
+
+    // Fetch updated profile image from backend
+    final token = await StorageService.loadAuthToken();
+    final cachedUser = userMap != null ? User.fromJson(userMap) : widget.user;
+
+    if (token != null && cachedUser?.id != null) {
+      final serverProfile = await ProfileService.getProfile(
+        cachedUser!.id,
+        token,
+      );
+
+      if (serverProfile != null && serverProfile.isNotEmpty) {
+        final backendImagePath = serverProfile['profileImagePath'] as String?;
+        if (backendImagePath != null && backendImagePath.isNotEmpty) {
+          // Remove leading slash to avoid double slashes
+          final cleanPath = backendImagePath.startsWith('/')
+              ? backendImagePath.substring(1)
+              : backendImagePath;
+          final fullImageUrl = '${ProfileService.effectiveBaseUrl}/$cleanPath';
+          await StorageService.saveProfileImagePath(fullImageUrl);
+          setState(() {
+            _profileImagePath = fullImageUrl;
+          });
+        }
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -60,9 +117,9 @@ class _HomeScreenState extends State<HomeScreen> {
       case 0:
         return _buildHomePage();
       case 1:
-        return ResumeBuilderScreen();
+        return ChatPage();
       case 2:
-        return ProfilePage(user: widget.user);
+        return ProfilePage(user: _cachedUser ?? widget.user);
       default:
         return _buildHomePage();
     }
@@ -70,7 +127,12 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildHomePage() {
     final displayName =
-        widget.user?.fullName ?? widget.user?.username ?? 'Name';
+        _cachedUser?.fullName ??
+        _cachedUser?.username ??
+        widget.user?.fullName ??
+        widget.user?.username ??
+        _cachedProfile?['field'] ??
+        'Name';
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20.0),
@@ -89,11 +151,26 @@ class _HomeScreenState extends State<HomeScreen> {
                   color: Colors.black87,
                 ),
               ),
-              // Profile avatar
-              CircleAvatar(
-                radius: 22,
-                backgroundColor: Colors.white,
-                child: Icon(Icons.person, color: Colors.grey[600], size: 28),
+              // Profile avatar: switch to profile tab (keeps bottom nav)
+              InkWell(
+                onTap: () {
+                  setState(() {
+                    _currentIndex = 2; // Switch to profile tab
+                  });
+                },
+                borderRadius: BorderRadius.circular(22),
+                child: CircleAvatar(
+                  radius: 22,
+                  backgroundColor: Colors.white,
+                  backgroundImage: _profileImagePath != null
+                      ? (_profileImagePath!.startsWith('http')
+                            ? NetworkImage(_profileImagePath!)
+                            : FileImage(File(_profileImagePath!)))
+                      : null,
+                  child: _profileImagePath == null
+                      ? Icon(Icons.person, color: Colors.grey[600], size: 28)
+                      : null,
+                ),
               ),
             ],
           ),
@@ -195,7 +272,10 @@ class _HomeScreenState extends State<HomeScreen> {
             onPressed: () {
               // Navigate to your learning path page
               Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const LearningPathPage()),
+                MaterialPageRoute(
+                  builder: (_) =>
+                      const LearningPathPage(careerTitle: 'Software Developer'),
+                ),
               );
             },
           ),
