@@ -3,7 +3,8 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:http/http.dart' as http;
-import '../models/user.dart';
+import '../../models/user.dart';
+import '../../core/constants/api_constants.dart';
 
 class AuthResult {
   final bool success;
@@ -15,16 +16,14 @@ class AuthResult {
 }
 
 class AuthService {
-  // Base URL - Use PC's IP address for both emulator and physical devices
-  static const String _baseUrl = 'http://192.168.1.101:5001';
-
+  // Use centralized API configuration
   static String get _effectiveBaseUrl {
-    debugPrint('🔵 AuthService using base URL: $_baseUrl');
-    return _baseUrl;
+    debugPrint('🔵 AuthService using base URL: ${ApiConstants.baseUrl}');
+    return ApiConstants.baseUrl;
   }
 
   // Public method to get API URL for debugging
-  static String getApiUrl() => _baseUrl;
+  static String getApiUrl() => ApiConstants.baseUrl;
 
   /// POST /api/auth/login
   /// body: { "email": "...", "password": "..." }
@@ -263,6 +262,56 @@ class AuthService {
       return AuthResult(
         success: false,
         message: 'Bad response format: ${e.message}',
+      );
+    } catch (e) {
+      return AuthResult(success: false, message: e.toString());
+    }
+  }
+
+  /// POST /api/auth/reset-password
+  /// Reset password with token/OTP and new password
+  static Future<AuthResult> resetPassword(
+    String token,
+    String newPassword,
+  ) async {
+    final uri = Uri.parse('$_effectiveBaseUrl/api/auth/reset-password');
+
+    try {
+      final resp = await http.post(
+        uri,
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({'token': token, 'newPassword': newPassword}),
+      );
+
+      debugPrint('AuthService.resetPassword status: ${resp.statusCode}');
+      debugPrint('AuthService.resetPassword body: ${resp.body}');
+
+      if (resp.statusCode == 200 || resp.statusCode == 201) {
+        final Map<String, dynamic> body = json.decode(resp.body);
+        final message =
+            body['message']?.toString() ?? 'Password reset successfully';
+        return AuthResult(success: true, message: message);
+      }
+
+      // Handle error
+      String message = 'Failed to reset password (${resp.statusCode})';
+      try {
+        final Map<String, dynamic> body = json.decode(resp.body);
+        if (body.containsKey('message')) {
+          message = body['message'].toString();
+        } else if (body.containsKey('error')) {
+          message = body['error'].toString();
+        }
+      } catch (_) {
+        message = resp.body.toString();
+      }
+
+      return AuthResult(success: false, message: message);
+    } on SocketException catch (e) {
+      return AuthResult(
+        success: false,
+        message:
+            'Connection refused — is the API running at $_effectiveBaseUrl? (${e.message})',
       );
     } catch (e) {
       return AuthResult(success: false, message: e.toString());

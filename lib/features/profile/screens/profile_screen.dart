@@ -1,11 +1,11 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import '../models/user.dart';
-import '../services/local/storage_service.dart';
-import '../services/api/profile_service.dart';
-import 'login.dart';
-import 'reg_profile.dart';
+import '../../../models/user.dart';
+import '../../../services/local/storage_service.dart';
+import '../../../services/api/profile_service.dart';
+import '../../auth/screens/login_screen.dart';
+import 'reg_profile_screen.dart';
 
 // Profile Page (shows saved profile information)
 class ProfilePage extends StatefulWidget {

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import '../models/course_module.dart';
-import '../services/course_progress_service.dart';
-import 'course_video.dart';
+import '../../../models/course_module.dart';
+import '../../../services/course_progress_service.dart';
+import 'course_video_screen.dart';
 
 // Learning Path Page
 class LearningPathPage extends StatefulWidget {

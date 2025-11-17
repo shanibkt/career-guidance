@@ -1,9 +1,9 @@
-import 'package:career_guidence/screens/homescreen.dart';
+import 'package:career_guidence/features/home/screens/home_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
-import '../services/api/auth_service.dart';
-import '../services/local/storage_service.dart';
+import '../../../services/api/auth_service.dart';
+import '../../../services/local/storage_service.dart';
 
 /// Clean, single implementation of the LoginPage.
 /// Uses a Form with validation, TextEditingControllers and

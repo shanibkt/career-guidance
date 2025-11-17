@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
-import '../services/storage_service.dart';
-import '../services/profile_service.dart';
+import '../services/local/storage_service.dart';
+import '../services/api/profile_service.dart';
 import '../models/user.dart';
 import 'homescreen.dart';
 

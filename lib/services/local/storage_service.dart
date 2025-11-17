@@ -74,4 +74,23 @@ class StorageService {
     await prefs.remove(_authTokenKey);
     await prefs.remove(_userKey);
   }
+
+  /// Clear auth token only
+  static Future<void> clearAuthToken() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_authTokenKey);
+  }
+
+  /// Clear user data only
+  static Future<void> clearUser() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_userKey);
+  }
+
+  /// Clear profile data only
+  static Future<void> clearProfile() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_profileKey);
+    await prefs.remove(_profileImageKey);
+  }
 }

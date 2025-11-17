@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 // secure storage not used here; keep signup flow simple and navigate to login
 
-import '../services/api/auth_service.dart';
-import '../services/local/storage_service.dart';
-import 'reg_profile.dart';
+import '../../../services/api/auth_service.dart';
+import '../../../services/local/storage_service.dart';
+import '../../profile/screens/reg_profile_screen.dart';
 
 class SignUpScreen extends StatefulWidget {
   const SignUpScreen({super.key});

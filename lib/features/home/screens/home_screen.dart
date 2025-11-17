@@ -1,13 +1,13 @@
 import 'dart:io';
-import 'package:career_guidence/screens/career.dart';
-import 'package:career_guidence/screens/chat.dart';
-import 'package:career_guidence/screens/learning_path.dart';
-import 'package:career_guidence/screens/profile.dart';
-import 'package:career_guidence/screens/resume_builder.dart';
+import '../../career/screens/career_suggestions_screen.dart';
+import '../../chat/screens/chat_screen.dart';
+import '../../learning_path/screens/learning_path_screen.dart';
+import '../../profile/screens/profile_screen.dart';
+import '../../resume_builder/screens/resume_builder_screen.dart';
 import 'package:flutter/material.dart';
-import '../models/user.dart';
-import '../services/local/storage_service.dart';
-import '../services/api/profile_service.dart';
+import '../../../models/user.dart';
+import '../../../services/local/storage_service.dart';
+import '../../../services/api/profile_service.dart';
 
 class HomeScreen extends StatefulWidget {
   final User? user;
@@ -23,18 +23,11 @@ class _HomeScreenState extends State<HomeScreen> {
   User? _cachedUser;
   Map<String, dynamic>? _cachedProfile;
   String? _profileImagePath;
-  final PageController _pageController = PageController();
 
   @override
   void initState() {
     super.initState();
     _loadSaved();
-  }
-
-  @override
-  void dispose() {
-    _pageController.dispose();
-    super.dispose();
   }
 
   Future<void> _loadSaved() async {
@@ -89,21 +82,7 @@ class _HomeScreenState extends State<HomeScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            Expanded(
-              child: PageView(
-                controller: _pageController,
-                onPageChanged: (index) {
-                  setState(() {
-                    _currentIndex = index;
-                  });
-                },
-                children: [
-                  _buildHomePage(),
-                  ChatPage(),
-                  ProfilePage(user: _cachedUser ?? widget.user),
-                ],
-              ),
-            ),
+            Expanded(child: _getSelectedPage()),
 
             // Bottom Navigation Bar - Fixed
             Container(
@@ -131,6 +110,19 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       ),
     );
+  }
+
+  Widget _getSelectedPage() {
+    switch (_currentIndex) {
+      case 0:
+        return _buildHomePage();
+      case 1:
+        return ChatPage();
+      case 2:
+        return ProfilePage(user: _cachedUser ?? widget.user);
+      default:
+        return _buildHomePage();
+    }
   }
 
   Widget _buildHomePage() {
@@ -387,11 +379,9 @@ class _HomeScreenState extends State<HomeScreen> {
 
     return InkWell(
       onTap: () {
-        _pageController.animateToPage(
-          index,
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeInOut,
-        );
+        setState(() {
+          _currentIndex = index;
+        });
       },
       borderRadius: BorderRadius.circular(20),
       child: AnimatedContainer(

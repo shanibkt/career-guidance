@@ -7,7 +7,7 @@ import 'package:career_guidence/screens/reset_password.dart';
 import 'package:flutter/material.dart';
 import 'screens/homescreen.dart';
 import 'models/user.dart';
-import 'services/storage_service.dart';
+import 'services/local/storage_service.dart';
 
 void main() {
   runApp(const MyApp());

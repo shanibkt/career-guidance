@@ -2,16 +2,14 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:http/http.dart' as http;
+import '../../core/constants/api_constants.dart';
 
 class ProfileService {
-  // Base URL - MUST match your PC's IP address (same as AuthService)
-  // Use this for both emulator and physical devices
-  static const String _baseUrl = 'http://192.168.1.101:5001';
-
-  static String get _effectiveBaseUrl => _baseUrl;
+  // Use centralized API configuration
+  static String get _effectiveBaseUrl => ApiConstants.baseUrl;
 
   // Public getter for building image URLs
-  static String get effectiveBaseUrl => _effectiveBaseUrl;
+  static String get effectiveBaseUrl => ApiConstants.baseUrl;
 
   /// GET /api/userprofile/{userId}
   /// Returns profile data: phone, age, gender, education, field, skills, areas, image
