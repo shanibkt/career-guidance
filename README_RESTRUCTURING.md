@@ -216,7 +216,7 @@ Follow the **IMPORT_MIGRATION.md** guide to:
 
 **Old:**
 ```dart
-static const String _baseUrl = 'http://192.168.1.35:5001';
+static const String _baseUrl = 'http://192.168.1.59:5001';
 final uri = Uri.parse('$_baseUrl/api/auth/login');
 ```
 

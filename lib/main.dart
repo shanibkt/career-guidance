@@ -1,16 +1,37 @@
-import 'package:career_guidence/screens/login.dart';
-import 'package:career_guidence/screens/quiz.dart';
-import 'package:career_guidence/screens/reg_profile.dart';
-import 'package:career_guidence/screens/sinup.dart';
-import 'package:career_guidence/screens/forgot_password.dart';
-import 'package:career_guidence/screens/reset_password.dart';
 import 'package:flutter/material.dart';
-import 'screens/homescreen.dart';
-import 'models/user.dart';
-import 'services/local/storage_service.dart';
+import 'package:provider/provider.dart';
 
-void main() {
-  runApp(const MyApp());
+import 'core/theme/app_theme.dart';
+import 'core/utils/network_helper.dart';
+import 'providers/auth_provider.dart';
+import 'providers/profile_provider.dart';
+
+// Feature-based imports
+import 'features/auth/screens/login_screen.dart';
+import 'features/auth/screens/signup_screen.dart';
+import 'features/auth/screens/forgot_password_screen.dart';
+import 'features/auth/screens/reset_password_screen.dart';
+import 'features/profile/screens/reg_profile_screen.dart';
+import 'features/home/screens/home_screen.dart';
+import 'features/quiz/screens/quiz_screen.dart';
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // Run network diagnostics on startup
+  await NetworkHelper.runDiagnostics();
+
+  runApp(
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider<AuthProvider>(create: (_) => AuthProvider()),
+        ChangeNotifierProvider<ProfileProvider>(
+          create: (_) => ProfileProvider(),
+        ),
+      ],
+      child: const MyApp(),
+    ),
+  );
 }
 
 class MyApp extends StatefulWidget {
@@ -21,37 +42,35 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
-  Future<Map<String, dynamic>?> _loadAuthAndUser() async {
-    final token = await StorageService.loadAuthToken();
-    if (token == null || token.isEmpty) return null;
-
-    final userMap = await StorageService.loadUser();
-    return {'token': token, 'user': userMap};
+  @override
+  void initState() {
+    super.initState();
+    // Initialize providers
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<AuthProvider>().initialize();
+      context.read<ProfileProvider>().initialize();
+    });
   }
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<Map<String, dynamic>?>(
-      future: _loadAuthAndUser(),
-      builder: (context, snap) {
+    return Consumer<AuthProvider>(
+      builder: (context, authProvider, _) {
         Widget start;
-        if (snap.connectionState == ConnectionState.waiting) {
+
+        if (authProvider.isLoading) {
           start = const Scaffold(
             body: Center(child: CircularProgressIndicator()),
           );
-        } else if (snap.hasData && snap.data != null) {
-          final userMap = snap.data!['user'] as Map<String, dynamic>?;
-          final user = userMap != null ? User.fromJson(userMap) : null;
-          start = HomeScreen(user: user);
+        } else if (authProvider.isAuthenticated) {
+          start = HomeScreen(user: authProvider.user);
         } else {
           start = const LoginPage();
         }
 
         return MaterialApp(
-          title: 'Flutter Demo',
-          theme: ThemeData(
-            colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
-          ),
+          title: 'Career Guidance',
+          theme: AppTheme.lightTheme,
           home: start,
           routes: {
             '/login': (context) => const LoginPage(),

@@ -1,8 +1,8 @@
+import 'package:career_guidence/features/auth/screens/login_screen.dart';
 import 'package:flutter/material.dart';
 // secure storage not used here; keep signup flow simple and navigate to login
 
 import 'services/api/auth_service.dart';
-import 'screens/login.dart';
 
 class SignUpScreen extends StatefulWidget {
   const SignUpScreen({super.key});

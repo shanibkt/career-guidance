@@ -11,7 +11,7 @@ The app is not fetching data from the backend API. This guide will help you fix 
 ```powershell
 ipconfig
 ```
-Look for "IPv4 Address" under your WiFi adapter (e.g., `192.168.1.35`)
+Look for "IPv4 Address" under your WiFi adapter (e.g., `192.168.1.59`)
 
 **Mac/Linux:**
 ```bash
@@ -30,7 +30,7 @@ static const String baseUrl = 'http://YOUR_PC_IP:5001';
 
 Example:
 ```dart
-static const String baseUrl = 'http://192.168.1.35:5001';
+static const String baseUrl = 'http://192.168.1.59:5001';
 ```
 
 ### 3. Start Your Backend Server
@@ -54,7 +54,7 @@ Look for network diagnostics output:
 ```
 🔧 NETWORK DIAGNOSTICS
 📱 Device Network Info: ...
-🔗 Backend URL: http://192.168.1.35:5001
+🔗 Backend URL: http://192.168.1.59:5001
 🔍 Testing backend connection...
 ✅ Backend is reachable!
 ```
@@ -94,14 +94,14 @@ For **Physical Device:**
 Test if backend is accessible:
 ```bash
 # From PC browser
-http://192.168.1.35:5001/api/health
+http://192.168.1.59:5001/api/health
 
 # Should return: 200 OK
 ```
 
 ## Current Configuration
 
-- **Base URL:** `http://192.168.1.35:5001`
+- **Base URL:** `http://192.168.1.59:5001`
 - **All services centralized** in `ApiConstants`
 - **Auto-diagnostics** run on app startup
 

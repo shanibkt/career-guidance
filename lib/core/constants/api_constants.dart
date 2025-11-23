@@ -1,8 +1,8 @@
 class ApiConstants {
   // Base URL - Update this to match your backend IP address
-  // For Android Emulator: use your PC's IP (e.g., 192.168.1.35)
+  // For Android Emulator: use your PC's IP (e.g., 192.168.1.59)
   // For Physical Device: use your PC's IP on same WiFi network
-  static const String baseUrl = 'http://192.168.1.35:5001';
+  static const String baseUrl = 'http://192.168.1.59:5001';
 
   // Auth endpoints
   static const String login = '/api/auth/login';
