@@ -1,9 +1,11 @@
 import 'dart:io';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../../career/screens/career_suggestions_screen.dart';
 import '../../chat/screens/chat_screen.dart';
 import '../../learning_path/screens/learning_path_screen.dart';
 import '../../profile/screens/profile_screen.dart';
 import '../../resume_builder/screens/resume_builder_screen.dart';
+import '../../quiz/screens/ai_quiz_screen.dart';
 import 'package:flutter/material.dart';
 import '../../../models/user.dart';
 import '../../../services/local/storage_service.dart';
@@ -162,14 +164,32 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: CircleAvatar(
                   radius: 22,
                   backgroundColor: Colors.white,
-                  backgroundImage: _profileImagePath != null
-                      ? (_profileImagePath!.startsWith('http')
-                            ? NetworkImage(_profileImagePath!)
-                            : FileImage(File(_profileImagePath!)))
-                      : null,
                   child: _profileImagePath == null
                       ? Icon(Icons.person, color: Colors.grey[600], size: 28)
-                      : null,
+                      : ClipOval(
+                          child: _profileImagePath!.startsWith('http')
+                              ? CachedNetworkImage(
+                                  imageUrl: _profileImagePath!,
+                                  width: 44,
+                                  height: 44,
+                                  fit: BoxFit.cover,
+                                  placeholder: (ctx, url) =>
+                                      const CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                      ),
+                                  errorWidget: (ctx, url, err) => Icon(
+                                    Icons.person,
+                                    color: Colors.grey[600],
+                                    size: 28,
+                                  ),
+                                )
+                              : Image.file(
+                                  File(_profileImagePath!),
+                                  width: 44,
+                                  height: 44,
+                                  fit: BoxFit.cover,
+                                ),
+                        ),
                 ),
               ),
             ],
@@ -234,14 +254,16 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           const SizedBox(height: 24),
 
-          // Career Quiz section
+          // AI Career Quiz section
           _buildCard(
-            icon: Icons.help_outline,
-            title: 'Career Quiz',
-            buttonText: 'Start',
-            buttonColor: const Color(0xFFB8A67A),
+            icon: Icons.psychology_outlined,
+            title: 'AI Career Assessment',
+            buttonText: 'Start Quiz',
+            buttonColor: const Color(0xFF4A7DFF),
             onPressed: () {
-              Navigator.of(context).pushNamed('/quiz');
+              Navigator.of(
+                context,
+              ).push(MaterialPageRoute(builder: (_) => const AiQuizScreen()));
             },
           ),
           const SizedBox(height: 16),

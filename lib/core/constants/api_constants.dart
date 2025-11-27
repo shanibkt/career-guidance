@@ -2,7 +2,7 @@ class ApiConstants {
   // Base URL - Update this to match your backend IP address
   // For Android Emulator: use your PC's IP (e.g., 192.168.1.59)
   // For Physical Device: use your PC's IP on same WiFi network
-  static const String baseUrl = 'http://192.168.1.59:5001';
+  static const String baseUrl = 'http://192.168.1.80:5001';
 
   // Auth endpoints
   static const String login = '/api/auth/login';
@@ -26,6 +26,14 @@ class ApiConstants {
   // Course endpoints
   static const String courses = '/api/courses';
   static const String courseProgress = '/api/course-progress';
+
+  // Quiz endpoints
+  static const String quizGenerate = '/api/quiz/generate';
+  static const String quizSubmit = '/api/quiz/submit';
+
+  // Recommendations endpoints
+  static const String recommendationsGenerate = '/api/recommendations/generate';
+  static const String recommendations = '/api/recommendations';
 
   // Chat endpoints
   static const String chat = '/api/chat';

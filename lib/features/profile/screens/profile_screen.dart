@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../../../models/user.dart';
 import '../../../services/local/storage_service.dart';
 import '../../../services/api/profile_service.dart';
@@ -186,18 +187,36 @@ class _ProfilePageState extends State<ProfilePage> {
                   CircleAvatar(
                     radius: 28,
                     backgroundColor: Colors.white,
-                    backgroundImage: _imagePath != null
-                        ? (_imagePath!.startsWith('http')
-                              ? NetworkImage(_imagePath!) as ImageProvider
-                              : FileImage(File(_imagePath!)))
-                        : null,
                     child: _imagePath == null
                         ? const Icon(
                             Icons.person,
                             color: Colors.blueAccent,
                             size: 36,
                           )
-                        : null,
+                        : ClipOval(
+                            child: _imagePath!.startsWith('http')
+                                ? CachedNetworkImage(
+                                    imageUrl: _imagePath!,
+                                    width: 56,
+                                    height: 56,
+                                    fit: BoxFit.cover,
+                                    placeholder: (ctx, url) =>
+                                        const CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                        ),
+                                    errorWidget: (ctx, url, err) => const Icon(
+                                      Icons.person,
+                                      color: Colors.blueAccent,
+                                      size: 36,
+                                    ),
+                                  )
+                                : Image.file(
+                                    File(_imagePath!),
+                                    width: 56,
+                                    height: 56,
+                                    fit: BoxFit.cover,
+                                  ),
+                          ),
                   ),
                   const SizedBox(height: 8),
                   Text(
@@ -242,14 +261,30 @@ class _ProfilePageState extends State<ProfilePage> {
                   CircleAvatar(
                     radius: 60,
                     backgroundColor: Colors.blue[100],
-                    backgroundImage: _imagePath != null
-                        ? (_imagePath!.startsWith('http')
-                              ? NetworkImage(_imagePath!) as ImageProvider
-                              : FileImage(File(_imagePath!)))
-                        : null,
                     child: _imagePath == null
                         ? Icon(Icons.person, size: 80, color: Colors.blue[700])
-                        : null,
+                        : ClipOval(
+                            child: _imagePath!.startsWith('http')
+                                ? CachedNetworkImage(
+                                    imageUrl: _imagePath!,
+                                    width: 120,
+                                    height: 120,
+                                    fit: BoxFit.cover,
+                                    placeholder: (ctx, url) =>
+                                        const CircularProgressIndicator(),
+                                    errorWidget: (ctx, url, err) => Icon(
+                                      Icons.person,
+                                      size: 80,
+                                      color: Colors.blue[700],
+                                    ),
+                                  )
+                                : Image.file(
+                                    File(_imagePath!),
+                                    width: 120,
+                                    height: 120,
+                                    fit: BoxFit.cover,
+                                  ),
+                          ),
                   ),
                   const SizedBox(height: 16),
                   Text(
@@ -380,58 +415,24 @@ class _ProfilePageState extends State<ProfilePage> {
                       ),
                     ]),
                   const SizedBox(height: 24),
-                  if (_profile != null &&
-                      ((_profile!['areasOfInterest'] ?? _profile!['areas'])
-                              ?.isNotEmpty ==
-                          true))
-                    _buildSection('Areas of Interest', [
-                      Container(
-                        padding: const EdgeInsets.all(16),
-                        width: double.infinity,
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(12),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.05),
-                              blurRadius: 8,
-                            ),
-                          ],
-                        ),
-                        child: Text(
-                          (_profile!['areasOfInterest'] ?? _profile!['areas'])
-                                  ?.toString() ??
-                              '',
-                          style: const TextStyle(
-                            fontSize: 15,
-                            color: Colors.black87,
-                            height: 1.5,
-                          ),
+                  _buildSection('Career', [
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      width: double.infinity,
+                      decoration: BoxDecoration(
+                        color: Colors.grey[100],
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.grey[300]!),
+                      ),
+                      child: const Text(
+                        'career not selected',
+                        style: TextStyle(
+                          color: Colors.black54,
+                          fontStyle: FontStyle.italic,
                         ),
                       ),
-                    ]),
-                  if (_profile == null ||
-                      ((_profile!['areasOfInterest'] ?? _profile!['areas'])
-                              ?.isEmpty !=
-                          false))
-                    _buildSection('Areas of Interest', [
-                      Container(
-                        padding: const EdgeInsets.all(16),
-                        width: double.infinity,
-                        decoration: BoxDecoration(
-                          color: Colors.grey[100],
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.grey[300]!),
-                        ),
-                        child: const Text(
-                          'No areas of interest specified. Tap edit to add your career aspirations.',
-                          style: TextStyle(
-                            color: Colors.black54,
-                            fontStyle: FontStyle.italic,
-                          ),
-                        ),
-                      ),
-                    ]),
+                    ),
+                  ]),
                 ],
               ),
             ),

@@ -29,7 +29,6 @@ class _RegProfileScreenState extends State<RegProfileScreen> {
   final _ageCtrl = TextEditingController();
   final _fieldCtrl = TextEditingController();
   final _skillCtrl = TextEditingController();
-  final _areasCtrl = TextEditingController();
 
   // State
   String? _education;
@@ -83,8 +82,6 @@ class _RegProfileScreenState extends State<RegProfileScreen> {
           _skills.clear();
           _skills.addAll(skills.map((e) => e.toString()));
         }
-        _areasCtrl.text =
-            (map['areasOfInterest'] ?? map['areas'])?.toString() ?? '';
       });
     }
   }
@@ -131,7 +128,6 @@ class _RegProfileScreenState extends State<RegProfileScreen> {
         'gender': _gender,
         'fieldOfStudy': _fieldCtrl.text.trim(),
         'skills': _skills,
-        'areasOfInterest': _areasCtrl.text.trim(),
       };
 
       // Remove null and empty values
@@ -167,8 +163,6 @@ class _RegProfileScreenState extends State<RegProfileScreen> {
         if (_fieldCtrl.text.trim().isNotEmpty)
           'fieldOfStudy': _fieldCtrl.text.trim(),
         if (_skills.isNotEmpty) 'skills': List<String>.from(_skills),
-        if (_areasCtrl.text.trim().isNotEmpty)
-          'areasOfInterest': _areasCtrl.text.trim(),
       };
 
       final localUserData = <String, dynamic>{
@@ -296,7 +290,6 @@ class _RegProfileScreenState extends State<RegProfileScreen> {
               label: 'Full Name',
               icon: Icons.person,
               validator: Validators.validateFullName,
-              readOnly: true,
             ),
             const SizedBox(height: 16),
             ProfileFormField(
@@ -363,14 +356,6 @@ class _RegProfileScreenState extends State<RegProfileScreen> {
               icon: Icons.book,
               validator: (v) =>
                   Validators.validateRequired(v, 'Field of study'),
-            ),
-            const SizedBox(height: 16),
-            ProfileFormField(
-              controller: _areasCtrl,
-              label: 'Areas of Interest',
-              icon: Icons.interests,
-              validator: (v) =>
-                  Validators.validateRequired(v, 'Areas of interest'),
             ),
             const SizedBox(height: 24),
             const Text(
@@ -442,7 +427,6 @@ class _RegProfileScreenState extends State<RegProfileScreen> {
     _ageCtrl.dispose();
     _fieldCtrl.dispose();
     _skillCtrl.dispose();
-    _areasCtrl.dispose();
     super.dispose();
   }
 }

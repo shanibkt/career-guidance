@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-
 import 'core/theme/app_theme.dart';
 import 'core/utils/network_helper.dart';
 import 'providers/auth_provider.dart';
 import 'providers/profile_provider.dart';
-
 // Feature-based imports
 import 'features/auth/screens/login_screen.dart';
 import 'features/auth/screens/signup_screen.dart';

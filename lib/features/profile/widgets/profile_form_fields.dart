@@ -1,3 +1,4 @@
+import 'dart:collection';
 import 'package:flutter/material.dart';
 import '../../../core/constants/app_colors.dart';
 
@@ -68,8 +69,13 @@ class ProfileDropdownField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Deduplicate items while preserving order to avoid duplicate
+    // DropdownMenuItem values which cause runtime assertions.
+    final uniqueItems = LinkedHashSet<String>.from(items).toList();
+    final initial = uniqueItems.contains(value) ? value : null;
+
     return DropdownButtonFormField<String>(
-      initialValue: value,
+      initialValue: initial,
       decoration: InputDecoration(
         labelText: label,
         prefixIcon: Icon(icon, color: AppColors.primary),
@@ -85,7 +91,7 @@ class ProfileDropdownField extends StatelessWidget {
         filled: true,
         fillColor: Colors.white,
       ),
-      items: items.map((item) {
+      items: uniqueItems.map((item) {
         return DropdownMenuItem(value: item, child: Text(item));
       }).toList(),
       onChanged: onChanged,

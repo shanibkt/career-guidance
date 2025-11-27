@@ -7,6 +7,8 @@ class StorageService {
   static const _profileImageKey = 'profile_image';
   static const _authTokenKey = 'auth_token';
   static const _userKey = 'user_data';
+  static const _chatHistoryKey = 'chat_history';
+  static const _chatMessagesPrefix = 'chat_messages_';
 
   /// Save profile map as JSON
   static Future<void> saveProfile(Map<String, dynamic> profile) async {
@@ -92,5 +94,71 @@ class StorageService {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_profileKey);
     await prefs.remove(_profileImageKey);
+  }
+
+  /// Save chat history sessions
+  static Future<void> saveChatHistory(
+    List<Map<String, dynamic>> sessions,
+  ) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_chatHistoryKey, json.encode(sessions));
+  }
+
+  /// Load chat history sessions
+  static Future<List<Map<String, dynamic>>> loadChatHistory() async {
+    final prefs = await SharedPreferences.getInstance();
+    final s = prefs.getString(_chatHistoryKey);
+    if (s == null) return [];
+    try {
+      final list = json.decode(s) as List;
+      return list.cast<Map<String, dynamic>>();
+    } catch (_) {
+      return [];
+    }
+  }
+
+  /// Save messages for a specific chat session
+  static Future<void> saveChatMessages(
+    String sessionId,
+    List<Map<String, dynamic>> messages,
+  ) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(
+      '$_chatMessagesPrefix$sessionId',
+      json.encode(messages),
+    );
+  }
+
+  /// Load messages for a specific chat session
+  static Future<List<Map<String, dynamic>>> loadChatMessages(
+    String sessionId,
+  ) async {
+    final prefs = await SharedPreferences.getInstance();
+    final s = prefs.getString('$_chatMessagesPrefix$sessionId');
+    if (s == null) return [];
+    try {
+      final list = json.decode(s) as List;
+      return list.cast<Map<String, dynamic>>();
+    } catch (_) {
+      return [];
+    }
+  }
+
+  /// Clear all chat history
+  static Future<void> clearChatHistory() async {
+    final prefs = await SharedPreferences.getInstance();
+    final keys = prefs.getKeys();
+    for (final key in keys) {
+      if (key.startsWith(_chatMessagesPrefix)) {
+        await prefs.remove(key);
+      }
+    }
+    await prefs.remove(_chatHistoryKey);
+  }
+
+  /// Delete a specific chat session
+  static Future<void> deleteChatSession(String sessionId) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('$_chatMessagesPrefix$sessionId');
   }
 }

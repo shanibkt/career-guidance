@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../../../core/constants/app_colors.dart';
 
 class ImagePickerWidget extends StatelessWidget {
@@ -95,6 +96,9 @@ class ImagePickerWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isNetworkImage = imagePath != null && imagePath!.startsWith('http');
+    final isLocalImage = imagePath != null && !imagePath!.startsWith('http');
+
     return Center(
       child: Stack(
         children: [
@@ -104,12 +108,6 @@ class ImagePickerWidget extends StatelessWidget {
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               gradient: imagePath == null ? AppColors.primaryGradient : null,
-              image: imagePath != null
-                  ? DecorationImage(
-                      image: FileImage(File(imagePath!)),
-                      fit: BoxFit.cover,
-                    )
-                  : null,
               border: Border.all(color: Colors.white, width: 4),
               boxShadow: [
                 BoxShadow(
@@ -121,7 +119,28 @@ class ImagePickerWidget extends StatelessWidget {
             ),
             child: imagePath == null
                 ? Icon(Icons.person, size: size * 0.5, color: Colors.white)
-                : null,
+                : ClipOval(
+                    child: isNetworkImage
+                        ? CachedNetworkImage(
+                            imageUrl: imagePath!,
+                            fit: BoxFit.cover,
+                            placeholder: (context, url) => const Center(
+                              child: CircularProgressIndicator(),
+                            ),
+                            errorWidget: (context, url, error) => Icon(
+                              Icons.person,
+                              size: size * 0.5,
+                              color: Colors.white,
+                            ),
+                          )
+                        : isLocalImage
+                        ? Image.file(File(imagePath!), fit: BoxFit.cover)
+                        : Icon(
+                            Icons.person,
+                            size: size * 0.5,
+                            color: Colors.white,
+                          ),
+                  ),
           ),
           Positioned(
             bottom: 0,
