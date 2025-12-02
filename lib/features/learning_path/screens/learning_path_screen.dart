@@ -1,16 +1,20 @@
 import 'package:flutter/material.dart';
 import '../../../models/course_module.dart';
 import '../../../services/course_progress_service.dart';
+import '../../../services/api/learning_video_service.dart';
+import '../../../services/api/career_progress_service.dart';
 import 'course_video_screen.dart';
 
 // Learning Path Page
 class LearningPathPage extends StatefulWidget {
   final String careerTitle;
+  final List<String> requiredSkills;
   final Color accentColor;
 
   const LearningPathPage({
     super.key,
     required this.careerTitle,
+    this.requiredSkills = const [],
     this.accentColor = const Color(0xFF286ED8),
   });
 
@@ -29,28 +33,106 @@ class _LearningPathPageState extends State<LearningPathPage> {
   }
 
   Future<void> _loadCourses() async {
-    final loadedCourses = CourseProgressService.getCoursesForCareer(
-      widget.careerTitle,
+    // Fetch courses from database based on required skills
+    List<CourseModule> generatedCourses;
+
+    if (widget.requiredSkills.isEmpty) {
+      print('⚠️ No skills provided for ${widget.careerTitle}');
+      setState(() {
+        courses = [];
+        overallProgress = 0.0;
+      });
+      return;
+    }
+
+    try {
+      print(
+        '📚 Fetching videos from database for skills: ${widget.requiredSkills}',
+      );
+      generatedCourses = await LearningVideoService.getVideosBySkills(
+        widget.requiredSkills,
+      );
+
+      if (generatedCourses.isEmpty) {
+        print('⚠️ No videos found in database for provided skills');
+      }
+    } catch (e) {
+      print('❌ Error loading videos from database: $e');
+      print('⚠️ Falling back to empty course list');
+      generatedCourses = [];
+    }
+
+    // Load progress for each course from database
+    final progressList = await CareerProgressService.getCourseProgress(
+      careerName: widget.careerTitle,
     );
 
-    // Load progress for each course
-    for (var course in loadedCourses) {
-      final progress = await CourseProgressService.loadProgress(course.id);
-      if (progress != null) {
-        course.watchedPercentage = (progress['watchedPercentage'] as num)
+    for (var course in generatedCourses) {
+      // Find progress for this course
+      final courseProgress = progressList.firstWhere(
+        (p) => p['courseId'] == course.id,
+        orElse: () => <String, dynamic>{},
+      );
+
+      if (courseProgress.isNotEmpty) {
+        final watchedPercentage = courseProgress['watchedPercentage'];
+        final totalDurationSeconds = courseProgress['totalDurationSeconds'];
+        course.watchedPercentage = (watchedPercentage is num)
+            ? watchedPercentage.toDouble()
+            : 0.0;
+        course.isCompleted = courseProgress['isCompleted'] == true;
+        // Store real duration if available
+        if (totalDurationSeconds is num && totalDurationSeconds > 0) {
+          course.realDurationSeconds = totalDurationSeconds.toInt();
+        }
+      }
+
+      // Also check local storage as backup
+      final localProgress = await CourseProgressService.loadProgress(course.id);
+      if (localProgress != null && course.watchedPercentage == 0.0) {
+        course.watchedPercentage = (localProgress['watchedPercentage'] as num)
             .toDouble();
-        course.isCompleted = progress['isCompleted'] as bool;
+        course.isCompleted = localProgress['isCompleted'] as bool;
       }
     }
 
-    final overall = await CourseProgressService.calculateOverallProgress(
-      widget.careerTitle,
-    );
+    final overall = generatedCourses.isEmpty
+        ? 0.0
+        : generatedCourses.fold<double>(
+                0.0,
+                (sum, course) => sum + course.watchedPercentage,
+              ) /
+              generatedCourses.length;
 
     setState(() {
-      courses = loadedCourses;
+      courses = generatedCourses;
       overallProgress = overall;
     });
+  }
+
+  String _formatDuration(CourseModule course) {
+    // Use real duration from database progress if available
+    if (course.realDurationSeconds != null && course.realDurationSeconds! > 0) {
+      final seconds = course.realDurationSeconds!;
+      final hours = seconds ~/ 3600;
+      final minutes = (seconds % 3600) ~/ 60;
+
+      if (hours > 0) {
+        return '${hours}h ${minutes}m';
+      } else {
+        return '${minutes}m';
+      }
+    }
+
+    // Otherwise use database duration
+    final minutes = course.durationMinutes;
+    if (minutes >= 60) {
+      final hours = minutes ~/ 60;
+      final remainingMinutes = minutes % 60;
+      return '${hours}h ${remainingMinutes}m';
+    } else {
+      return '${minutes}m';
+    }
   }
 
   @override
@@ -276,7 +358,10 @@ class _LearningPathPageState extends State<LearningPathPage> {
         await Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => CourseVideoPage(course: course),
+            builder: (context) => CourseVideoPage(
+              course: course,
+              careerTitle: widget.careerTitle,
+            ),
           ),
         );
         // Reload progress after returning from video
@@ -445,7 +530,7 @@ class _LearningPathPageState extends State<LearningPathPage> {
                 Icon(Icons.access_time, size: 16, color: Colors.grey[600]),
                 const SizedBox(width: 4),
                 Text(
-                  '${course.durationMinutes} min',
+                  _formatDuration(course),
                   style: TextStyle(fontSize: 13, color: Colors.grey[600]),
                 ),
                 const Spacer(),

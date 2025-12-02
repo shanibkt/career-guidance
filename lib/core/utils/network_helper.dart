@@ -9,7 +9,10 @@ class NetworkHelper {
     try {
       debugPrint('🔍 Testing connection to: ${ApiConstants.baseUrl}');
 
-      final uri = Uri.parse('${ApiConstants.baseUrl}/api/health');
+      // Test the careers endpoint which is publicly accessible
+      final uri = Uri.parse(
+        '${ApiConstants.baseUrl}/api/recommendations/careers',
+      );
       final response = await http
           .get(uri)
           .timeout(
@@ -24,8 +27,14 @@ class NetworkHelper {
         debugPrint('✅ Backend is reachable!');
         return true;
       } else {
-        debugPrint('⚠️ Backend responded with status: ${response.statusCode}');
-        return false;
+        debugPrint('! Backend responded with status: ${response.statusCode}');
+        // 404 might mean the endpoint doesn't exist, but server is running
+        // Try to be more forgiving
+        if (response.statusCode == 404) {
+          debugPrint('  Note: Server is responding but endpoint may not exist');
+        }
+        return response.statusCode <
+            500; // Server errors are false, client errors might be OK
       }
     } on SocketException catch (e) {
       debugPrint('❌ Connection failed: ${e.message}');

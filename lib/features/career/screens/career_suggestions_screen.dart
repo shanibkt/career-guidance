@@ -1,9 +1,49 @@
 import 'package:flutter/material.dart';
 import 'career_detail_screen.dart';
+import '../../../services/api/career_service.dart';
+import '../../../models/career.dart';
 
 // Career Suggestions Page
-class CareerSuggestionsPage extends StatelessWidget {
-  const CareerSuggestionsPage({super.key});
+class CareerSuggestionsPage extends StatefulWidget {
+  final List<String> userSkills;
+
+  const CareerSuggestionsPage({super.key, this.userSkills = const []});
+
+  @override
+  State<CareerSuggestionsPage> createState() => _CareerSuggestionsPageState();
+}
+
+class _CareerSuggestionsPageState extends State<CareerSuggestionsPage> {
+  List<Career> _careers = [];
+  bool _isLoading = true;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCareers();
+  }
+
+  Future<void> _loadCareers() async {
+    try {
+      setState(() {
+        _isLoading = true;
+        _error = null;
+      });
+
+      final careers = await CareerService.getAllCareers();
+
+      setState(() {
+        _careers = careers;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _error = e.toString();
+        _isLoading = false;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -15,82 +55,108 @@ class CareerSuggestionsPage extends StatelessWidget {
         foregroundColor: Colors.black87,
         elevation: 0,
       ),
-      body: ListView(
-        padding: const EdgeInsets.all(20),
-        children: [
-          _buildSuggestionCard(
-            context,
-            'Software Developer',
-            'High demand role with great growth potential',
-            Icons.computer,
-            Colors.blue,
-            'A software developer is a professional who designs, develops, tests, and maintains software applications and systems.',
-            [
-              'Python',
-              'Java',
-              'JavaScript',
-              'SQL',
-              'C++',
-              'React',
-              'Django',
-              'OOP',
-            ],
-            ['Python', 'Java'],
-          ),
-          const SizedBox(height: 16),
-          _buildSuggestionCard(
-            context,
-            'Data Scientist',
-            'Analyze data to drive business decisions',
-            Icons.analytics,
-            Colors.green,
-            'A data scientist analyzes complex data to extract insights and create data-driven solutions for businesses.',
-            [
-              'Python',
-              'R',
-              'SQL',
-              'Machine Learning',
-              'Statistics',
-              'Pandas',
-              'NumPy',
-              'Tableau',
-            ],
-            ['Python', 'SQL'],
-          ),
-          const SizedBox(height: 16),
-          _buildSuggestionCard(
-            context,
-            'UX Designer',
-            'Create intuitive user experiences',
-            Icons.design_services,
-            Colors.purple,
-            'A UX designer creates user-centered designs to improve user satisfaction and usability of digital products.',
-            [
-              'Figma',
-              'Adobe XD',
-              'Sketch',
-              'User Research',
-              'Wireframing',
-              'Prototyping',
-              'UI Design',
-              'CSS',
-            ],
-            ['Figma', 'CSS'],
-          ),
-        ],
-      ),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : _error != null
+          ? Center(
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(
+                      Icons.error_outline,
+                      size: 64,
+                      color: Colors.red,
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Failed to load careers',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.grey[800],
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      _error!,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(color: Colors.grey),
+                    ),
+                    const SizedBox(height: 24),
+                    ElevatedButton.icon(
+                      onPressed: _loadCareers,
+                      icon: const Icon(Icons.refresh),
+                      label: const Text('Retry'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blueAccent,
+                        foregroundColor: Colors.white,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            )
+          : _careers.isEmpty
+          ? const Center(
+              child: Text(
+                'No careers available',
+                style: TextStyle(fontSize: 16, color: Colors.grey),
+              ),
+            )
+          : ListView.separated(
+              padding: const EdgeInsets.all(20),
+              itemCount: _careers.length,
+              separatorBuilder: (context, index) => const SizedBox(height: 16),
+              itemBuilder: (context, index) {
+                final career = _careers[index];
+                return _buildSuggestionCard(
+                  context,
+                  career,
+                  _getCareerColor(index),
+                );
+              },
+            ),
     );
+  }
+
+  Color _getCareerColor(int index) {
+    final colors = [
+      Colors.blue,
+      Colors.green,
+      Colors.purple,
+      Colors.orange,
+      Colors.teal,
+      Colors.pink,
+      Colors.indigo,
+      Colors.cyan,
+    ];
+    return colors[index % colors.length];
+  }
+
+  IconData _getCareerIcon(String careerName) {
+    final name = careerName.toLowerCase();
+    if (name.contains('developer') || name.contains('engineer')) {
+      return Icons.computer;
+    } else if (name.contains('data') || name.contains('scientist')) {
+      return Icons.analytics;
+    } else if (name.contains('design')) {
+      return Icons.design_services;
+    } else if (name.contains('mobile')) {
+      return Icons.phone_android;
+    } else if (name.contains('backend')) {
+      return Icons.storage;
+    } else if (name.contains('frontend')) {
+      return Icons.web;
+    }
+    return Icons.work_outline;
   }
 
   Widget _buildSuggestionCard(
     BuildContext context,
-    String title,
-    String subtitle,
-    IconData icon,
+    Career career,
     Color color,
-    String overview,
-    List<String> requiredSkills,
-    List<String> userSkills,
   ) {
     return GestureDetector(
       onTap: () {
@@ -98,10 +164,10 @@ class CareerSuggestionsPage extends StatelessWidget {
           context,
           MaterialPageRoute(
             builder: (context) => CareerDetailPage(
-              careerTitle: title,
-              overview: overview,
-              requiredSkills: requiredSkills,
-              userSkills: userSkills,
+              careerTitle: career.name,
+              overview: career.description,
+              requiredSkills: career.requiredSkills,
+              userSkills: widget.userSkills,
               accentColor: color,
             ),
           ),
@@ -128,27 +194,17 @@ class CareerSuggestionsPage extends StatelessWidget {
                 color: color.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: Icon(icon, color: color, size: 30),
+              child: Icon(_getCareerIcon(career.name), color: color, size: 30),
             ),
             const SizedBox(width: 16),
             Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black87,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    subtitle,
-                    style: const TextStyle(fontSize: 14, color: Colors.black54),
-                  ),
-                ],
+              child: Text(
+                career.name,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
+                ),
               ),
             ),
             const Icon(

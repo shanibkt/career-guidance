@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../../../providers/profile_provider.dart';
+import '../../../services/local/storage_service.dart';
+import '../../../services/api/chat_service.dart';
 
 class ResumeBuilderScreen extends StatefulWidget {
   const ResumeBuilderScreen({super.key});
@@ -10,56 +14,73 @@ class ResumeBuilderScreen extends StatefulWidget {
 class _ResumeBuilderScreenState extends State<ResumeBuilderScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  final _nameController = TextEditingController(text: 'Jane Doe');
-  final _titleController = TextEditingController(text: 'Software Engineer');
-  final _emailController = TextEditingController(text: 'jane.doe@email.com');
-  final _phoneController = TextEditingController(text: '+91 98765 43210');
-  final _locationController = TextEditingController(text: 'Mumbai, India');
-  final _linkedinController = TextEditingController(
-    text: 'linkedin.com/in/janedoe',
-  );
-  final _summaryController = TextEditingController(
-    text:
-        'Passionate software engineer with 3+ years of experience in mobile app development. Specialized in Flutter, React, and backend integration.',
-  );
+  final _nameController = TextEditingController();
+  final _titleController = TextEditingController();
+  final _emailController = TextEditingController();
+  final _phoneController = TextEditingController();
+  final _locationController = TextEditingController();
+  final _linkedinController = TextEditingController();
+  final _summaryController = TextEditingController();
 
-  List<String> skills = [
-    'Flutter',
-    'Dart',
-    'Firebase',
-    'React',
-    'Node.js',
-    'SQL',
-  ];
-  List<Experience> experiences = [
-    Experience(
-      role: 'Senior Flutter Developer',
-      company: 'Techify Solutions',
-      period: '2022 - Present',
-      description:
-          'Lead developer for mobile applications, managing team of 3 developers.',
-    ),
-    Experience(
-      role: 'Frontend Developer',
-      company: 'Digital Innovations',
-      period: '2020 - 2022',
-      description:
-          'Developed responsive web applications using React and TypeScript.',
-    ),
-  ];
+  List<String> skills = [];
+  List<Experience> experiences = [];
 
-  List<Education> educationList = [
-    Education(
-      degree: 'B.Tech in Computer Science',
-      institution: 'IIT Mumbai',
-      year: '2016 - 2020',
-    ),
-  ];
+  List<Education> educationList = [];
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
+    _loadProfileData();
+  }
+
+  Future<void> _loadProfileData() async {
+    final profileProvider = context.read<ProfileProvider>();
+    final userMap = await StorageService.loadUser();
+    final profile = profileProvider.profileData;
+
+    setState(() {
+      // Load user data
+      _nameController.text = userMap?['fullName'] ?? '';
+      _emailController.text = userMap?['email'] ?? '';
+
+      // Load profile data
+      _phoneController.text =
+          profile?['phoneNumber']?.toString() ??
+          profile?['phone']?.toString() ??
+          '';
+      _locationController.text = profile?['location']?.toString() ?? '';
+      _linkedinController.text = profile?['linkedin']?.toString() ?? '';
+      _titleController.text =
+          profile?['jobTitle']?.toString() ??
+          profile?['title']?.toString() ??
+          '';
+      _summaryController.text =
+          profile?['summary']?.toString() ??
+          profile?['professionalSummary']?.toString() ??
+          '';
+
+      // Load skills
+      if (profile?['skills'] is List) {
+        skills = (profile!['skills'] as List).map((e) => e.toString()).toList();
+      }
+
+      // Load education
+      final educationLevel =
+          profile?['educationLevel']?.toString() ??
+          profile?['education']?.toString();
+      final fieldOfStudy =
+          profile?['fieldOfStudy']?.toString() ?? profile?['field']?.toString();
+      if (educationLevel != null && educationLevel.isNotEmpty) {
+        educationList = [
+          Education(
+            degree: educationLevel,
+            institution: fieldOfStudy ?? '',
+            year: '',
+          ),
+        ];
+      }
+    });
   }
 
   // ATS Score Calculation
@@ -287,15 +308,171 @@ class _ResumeBuilderScreenState extends State<ResumeBuilderScreen>
     );
   }
 
-  void aiImproveSummary() {
-    if (_summaryController.text.isEmpty) {
-      _summaryController.text =
-          'Dedicated professional with strong technical skills and proven track record of success.';
-    } else {
-      _summaryController.text =
-          '${_summaryController.text} Demonstrated expertise in delivering scalable solutions and collaborating with cross-functional teams.';
+  void aiImproveSummary() async {
+    final profile = context.read<ProfileProvider>().profileData;
+    final userMap = await StorageService.loadUser();
+
+    // Show loading indicator
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => Center(
+        child: Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CircularProgressIndicator(color: Colors.blue.shade700),
+              const SizedBox(height: 16),
+              const Text(
+                'AI is enhancing your summary...',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    try {
+      // Build prompt for AI
+      String aiPrompt = 'Create a professional resume summary for:\n\n';
+
+      if (userMap?['fullName'] != null) {
+        aiPrompt += 'Name: ${userMap!['fullName']}\n';
+      }
+
+      if (_titleController.text.isNotEmpty) {
+        aiPrompt += 'Job Title: ${_titleController.text}\n';
+      }
+
+      if (profile?['educationLevel'] != null || profile?['education'] != null) {
+        final education = profile!['educationLevel'] ?? profile['education'];
+        aiPrompt += 'Education: $education\n';
+      }
+
+      if (profile?['fieldOfStudy'] != null || profile?['field'] != null) {
+        final field = profile!['fieldOfStudy'] ?? profile['field'];
+        aiPrompt += 'Field of Study: $field\n';
+      }
+
+      if (skills.isNotEmpty) {
+        aiPrompt += 'Skills: ${skills.join(', ')}\n';
+      }
+
+      if (experiences.isNotEmpty) {
+        aiPrompt += '\nExperience:\n';
+        for (var exp in experiences.take(3)) {
+          if (exp.role.isNotEmpty && exp.company.isNotEmpty) {
+            aiPrompt += '- ${exp.role} at ${exp.company}';
+            if (exp.period.isNotEmpty) aiPrompt += ' (${exp.period})';
+            aiPrompt += '\n';
+            if (exp.description.isNotEmpty) {
+              aiPrompt += '  ${exp.description}\n';
+            }
+          }
+        }
+      }
+
+      if (_summaryController.text.isNotEmpty) {
+        aiPrompt += '\nCurrent Summary: ${_summaryController.text}\n';
+      }
+
+      aiPrompt +=
+          '\nPlease write a compelling, professional resume summary (2-4 sentences) that highlights key strengths, experience, and value proposition. Make it engaging and ATS-friendly.';
+
+      // Call AI service
+      final aiResponse = await ChatService.sendMessage(aiPrompt);
+
+      if (mounted) Navigator.pop(context); // Close loading dialog
+
+      if (aiResponse != null && aiResponse.isNotEmpty) {
+        setState(() {
+          _summaryController.text = aiResponse.trim();
+        });
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Row(
+                children: [
+                  Icon(Icons.auto_awesome, color: Colors.white),
+                  SizedBox(width: 12),
+                  Text('Summary enhanced by AI!'),
+                ],
+              ),
+              backgroundColor: Colors.green.shade600,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+          );
+        }
+      } else {
+        throw Exception('Empty AI response');
+      }
+    } catch (e) {
+      if (mounted) Navigator.pop(context); // Close loading dialog
+
+      // Fallback to basic enhancement
+      String summary = '';
+
+      if (_summaryController.text.isEmpty) {
+        summary = 'Dedicated professional';
+
+        if (userMap?['fullName'] != null) {
+          summary = 'I am ${userMap!['fullName']}, a dedicated professional';
+        }
+
+        if (profile?['educationLevel'] != null ||
+            profile?['education'] != null) {
+          final education = profile!['educationLevel'] ?? profile['education'];
+          summary += ' with $education';
+        }
+
+        if (skills.isNotEmpty) {
+          summary += ' specializing in ${skills.take(3).join(', ')}';
+        }
+
+        summary +=
+            '. Proven track record of success with strong technical skills and commitment to excellence.';
+        _summaryController.text = summary;
+      } else {
+        _summaryController.text =
+            '${_summaryController.text} Demonstrated expertise in delivering scalable solutions and collaborating with cross-functional teams.';
+      }
+
+      setState(() {});
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.warning_amber, color: Colors.white),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'AI unavailable. Used basic enhancement.\n${e.toString()}',
+                  ),
+                ),
+              ],
+            ),
+            backgroundColor: Colors.orange.shade700,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
     }
-    setState(() {});
   }
 
   @override
@@ -931,24 +1108,30 @@ class _ResumeBuilderScreenState extends State<ResumeBuilderScreen>
               children: [
                 Text(
                   _nameController.text.isEmpty
-                      ? 'Your Name'
+                      ? 'Enter Your Name'
                       : _nameController.text,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: Colors.white,
                     fontSize: 28,
                     fontWeight: FontWeight.bold,
                     letterSpacing: 0.5,
+                    fontStyle: _nameController.text.isEmpty
+                        ? FontStyle.italic
+                        : FontStyle.normal,
                   ),
                 ),
                 const SizedBox(height: 8),
                 Text(
                   _titleController.text.isEmpty
-                      ? 'Job Title'
+                      ? 'Enter Job Title'
                       : _titleController.text,
                   style: TextStyle(
                     color: Colors.white.withOpacity(0.9),
                     fontSize: 18,
                     fontWeight: FontWeight.w500,
+                    fontStyle: _titleController.text.isEmpty
+                        ? FontStyle.italic
+                        : FontStyle.normal,
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -978,71 +1161,188 @@ class _ResumeBuilderScreenState extends State<ResumeBuilderScreen>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // Summary
-                if (_summaryController.text.isNotEmpty) ...[
-                  _buildPreviewSectionTitle('Professional Summary'),
-                  const SizedBox(height: 8),
-                  Text(
-                    _summaryController.text,
-                    style: const TextStyle(
-                      fontSize: 14,
-                      height: 1.6,
-                      color: Color(0xFF4A5568),
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                ],
+                _buildPreviewSectionTitle('Professional Summary'),
+                const SizedBox(height: 8),
+                _summaryController.text.isEmpty
+                    ? Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.orange.shade50,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.orange.shade300),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.info_outline,
+                              color: Colors.orange.shade700,
+                              size: 20,
+                            ),
+                            const SizedBox(width: 8),
+                            const Expanded(
+                              child: Text(
+                                'Enter Professional Summary',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontStyle: FontStyle.italic,
+                                  color: Colors.black87,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                    : Text(
+                        _summaryController.text,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          height: 1.6,
+                          color: Color(0xFF4A5568),
+                        ),
+                      ),
+                const SizedBox(height: 24),
 
                 // Skills
-                if (skills.isNotEmpty) ...[
-                  _buildPreviewSectionTitle('Skills'),
-                  const SizedBox(height: 12),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: skills
-                        .where((s) => s.isNotEmpty)
-                        .map(
-                          (skill) => Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 6,
+                _buildPreviewSectionTitle('Skills'),
+                const SizedBox(height: 12),
+                skills.where((s) => s.isNotEmpty).isEmpty
+                    ? Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.orange.shade50,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.orange.shade300),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.info_outline,
+                              color: Colors.orange.shade700,
+                              size: 20,
                             ),
-                            decoration: BoxDecoration(
-                              color: Colors.blue.shade50,
-                              borderRadius: BorderRadius.circular(16),
-                              border: Border.all(
-                                color: Colors.blue.shade200,
-                                width: 1,
+                            const SizedBox(width: 8),
+                            const Expanded(
+                              child: Text(
+                                'Enter Skills',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontStyle: FontStyle.italic,
+                                  color: Colors.black87,
+                                ),
                               ),
                             ),
-                            child: Text(
-                              skill,
-                              style: TextStyle(
-                                color: Colors.blue.shade700,
-                                fontSize: 13,
-                                fontWeight: FontWeight.w600,
+                          ],
+                        ),
+                      )
+                    : Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: skills
+                            .where((s) => s.isNotEmpty)
+                            .map(
+                              (skill) => Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 6,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.blue.shade50,
+                                  borderRadius: BorderRadius.circular(16),
+                                  border: Border.all(
+                                    color: Colors.blue.shade200,
+                                    width: 1,
+                                  ),
+                                ),
+                                child: Text(
+                                  skill,
+                                  style: TextStyle(
+                                    color: Colors.blue.shade700,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
                               ),
-                            ),
-                          ),
-                        )
-                        .toList(),
-                  ),
-                  const SizedBox(height: 24),
-                ],
+                            )
+                            .toList(),
+                      ),
+                const SizedBox(height: 24),
 
                 // Experience
-                if (experiences.isNotEmpty) ...[
-                  _buildPreviewSectionTitle('Work Experience'),
-                  const SizedBox(height: 16),
-                  ...experiences.map((exp) => _buildPreviewExperience(exp)),
-                ],
+                _buildPreviewSectionTitle('Work Experience'),
+                const SizedBox(height: 16),
+                experiences.isEmpty
+                    ? Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.orange.shade50,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.orange.shade300),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.info_outline,
+                              color: Colors.orange.shade700,
+                              size: 20,
+                            ),
+                            const SizedBox(width: 8),
+                            const Expanded(
+                              child: Text(
+                                'Enter Work Experience',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontStyle: FontStyle.italic,
+                                  color: Colors.black87,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                    : Column(
+                        children: experiences
+                            .map((exp) => _buildPreviewExperience(exp))
+                            .toList(),
+                      ),
+                const SizedBox(height: 24),
 
                 // Education
-                if (educationList.isNotEmpty) ...[
-                  _buildPreviewSectionTitle('Education'),
-                  const SizedBox(height: 16),
-                  ...educationList.map((edu) => _buildPreviewEducation(edu)),
-                ],
+                _buildPreviewSectionTitle('Education'),
+                const SizedBox(height: 16),
+                educationList.isEmpty
+                    ? Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.orange.shade50,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.orange.shade300),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.info_outline,
+                              color: Colors.orange.shade700,
+                              size: 20,
+                            ),
+                            const SizedBox(width: 8),
+                            const Expanded(
+                              child: Text(
+                                'Enter Education',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontStyle: FontStyle.italic,
+                                  color: Colors.black87,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                    : Column(
+                        children: educationList
+                            .map((edu) => _buildPreviewEducation(edu))
+                            .toList(),
+                      ),
               ],
             ),
           ),
@@ -1234,7 +1534,15 @@ class _ResumeBuilderScreenState extends State<ResumeBuilderScreen>
         keyboardType: keyboardType,
         onChanged: (_) => setState(() {}),
         decoration: InputDecoration(
-          hintText: hint,
+          hintText: controller.text.isEmpty ? 'Enter $hint' : hint,
+          hintStyle: TextStyle(
+            color: controller.text.isEmpty
+                ? Colors.orange.shade700
+                : Colors.grey.shade400,
+            fontStyle: controller.text.isEmpty
+                ? FontStyle.italic
+                : FontStyle.normal,
+          ),
           prefixIcon: Icon(icon, color: Colors.blue.shade600, size: 20),
           filled: true,
           fillColor: Colors.white,
@@ -1244,7 +1552,12 @@ class _ResumeBuilderScreenState extends State<ResumeBuilderScreen>
           ),
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide(color: Colors.grey.shade200),
+            borderSide: BorderSide(
+              color: controller.text.isEmpty
+                  ? Colors.orange.shade300
+                  : Colors.grey.shade200,
+              width: controller.text.isEmpty ? 2 : 1,
+            ),
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
@@ -1871,21 +2184,27 @@ class ResumePreviewScreen extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      name.isEmpty ? 'Your Name' : name,
-                      style: const TextStyle(
+                      name.isEmpty ? 'Enter Your Name' : name,
+                      style: TextStyle(
                         color: Colors.white,
                         fontSize: 32,
                         fontWeight: FontWeight.bold,
                         letterSpacing: 0.5,
+                        fontStyle: name.isEmpty
+                            ? FontStyle.italic
+                            : FontStyle.normal,
                       ),
                     ),
                     const SizedBox(height: 10),
                     Text(
-                      title.isEmpty ? 'Job Title' : title,
+                      title.isEmpty ? 'Enter Job Title' : title,
                       style: TextStyle(
                         color: Colors.white.withOpacity(0.95),
                         fontSize: 20,
                         fontWeight: FontWeight.w500,
+                        fontStyle: title.isEmpty
+                            ? FontStyle.italic
+                            : FontStyle.normal,
                       ),
                     ),
                     const SizedBox(height: 20),
@@ -1914,72 +2233,188 @@ class ResumePreviewScreen extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // Summary
-                    if (summary.isNotEmpty) ...[
-                      _buildSectionTitle('Professional Summary', Icons.person),
-                      const SizedBox(height: 12),
-                      Text(
-                        summary,
-                        style: const TextStyle(
-                          fontSize: 15,
-                          height: 1.7,
-                          color: Color(0xFF4A5568),
-                        ),
-                      ),
-                      const SizedBox(height: 32),
-                    ],
+                    _buildSectionTitle('Professional Summary', Icons.person),
+                    const SizedBox(height: 12),
+                    summary.isEmpty
+                        ? Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: Colors.orange.shade50,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: Colors.orange.shade300),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.info_outline,
+                                  color: Colors.orange.shade700,
+                                  size: 20,
+                                ),
+                                const SizedBox(width: 8),
+                                const Expanded(
+                                  child: Text(
+                                    'Enter Professional Summary',
+                                    style: TextStyle(
+                                      fontSize: 15,
+                                      fontStyle: FontStyle.italic,
+                                      color: Colors.black87,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          )
+                        : Text(
+                            summary,
+                            style: const TextStyle(
+                              fontSize: 15,
+                              height: 1.7,
+                              color: Color(0xFF4A5568),
+                            ),
+                          ),
+                    const SizedBox(height: 32),
 
                     // Skills
-                    if (skills.where((s) => s.isNotEmpty).isNotEmpty) ...[
-                      _buildSectionTitle('Skills', Icons.star),
-                      const SizedBox(height: 16),
-                      Wrap(
-                        spacing: 10,
-                        runSpacing: 10,
-                        children: skills
-                            .where((s) => s.isNotEmpty)
-                            .map(
-                              (skill) => Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 16,
-                                  vertical: 8,
+                    _buildSectionTitle('Skills', Icons.star),
+                    const SizedBox(height: 16),
+                    skills.where((s) => s.isNotEmpty).isEmpty
+                        ? Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: Colors.orange.shade50,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: Colors.orange.shade300),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.info_outline,
+                                  color: Colors.orange.shade700,
+                                  size: 20,
                                 ),
-                                decoration: BoxDecoration(
-                                  color: Colors.blue.shade50,
-                                  borderRadius: BorderRadius.circular(20),
-                                  border: Border.all(
-                                    color: Colors.blue.shade200,
-                                    width: 1.5,
+                                const SizedBox(width: 8),
+                                const Expanded(
+                                  child: Text(
+                                    'Enter Skills',
+                                    style: TextStyle(
+                                      fontSize: 15,
+                                      fontStyle: FontStyle.italic,
+                                      color: Colors.black87,
+                                    ),
                                   ),
                                 ),
-                                child: Text(
-                                  skill,
-                                  style: TextStyle(
-                                    color: Colors.blue.shade700,
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w600,
+                              ],
+                            ),
+                          )
+                        : Wrap(
+                            spacing: 10,
+                            runSpacing: 10,
+                            children: skills
+                                .where((s) => s.isNotEmpty)
+                                .map(
+                                  (skill) => Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 16,
+                                      vertical: 8,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: Colors.blue.shade50,
+                                      borderRadius: BorderRadius.circular(20),
+                                      border: Border.all(
+                                        color: Colors.blue.shade200,
+                                        width: 1.5,
+                                      ),
+                                    ),
+                                    child: Text(
+                                      skill,
+                                      style: TextStyle(
+                                        color: Colors.blue.shade700,
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
                                   ),
-                                ),
-                              ),
-                            )
-                            .toList(),
-                      ),
-                      const SizedBox(height: 32),
-                    ],
+                                )
+                                .toList(),
+                          ),
+                    const SizedBox(height: 32),
 
                     // Experience
-                    if (experiences.isNotEmpty) ...[
-                      _buildSectionTitle('Work Experience', Icons.work),
-                      const SizedBox(height: 20),
-                      ...experiences.map((exp) => _buildExperienceItem(exp)),
-                    ],
+                    _buildSectionTitle('Work Experience', Icons.work),
+                    const SizedBox(height: 20),
+                    experiences.isEmpty
+                        ? Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: Colors.orange.shade50,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: Colors.orange.shade300),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.info_outline,
+                                  color: Colors.orange.shade700,
+                                  size: 20,
+                                ),
+                                const SizedBox(width: 8),
+                                const Expanded(
+                                  child: Text(
+                                    'Enter Work Experience',
+                                    style: TextStyle(
+                                      fontSize: 15,
+                                      fontStyle: FontStyle.italic,
+                                      color: Colors.black87,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          )
+                        : Column(
+                            children: experiences
+                                .map((exp) => _buildExperienceItem(exp))
+                                .toList(),
+                          ),
 
                     // Education
-                    if (education.isNotEmpty) ...[
-                      const SizedBox(height: 16),
-                      _buildSectionTitle('Education', Icons.school),
-                      const SizedBox(height: 20),
-                      ...education.map((edu) => _buildEducationItem(edu)),
-                    ],
+                    const SizedBox(height: 32),
+                    _buildSectionTitle('Education', Icons.school),
+                    const SizedBox(height: 20),
+                    education.isEmpty
+                        ? Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: Colors.orange.shade50,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: Colors.orange.shade300),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.info_outline,
+                                  color: Colors.orange.shade700,
+                                  size: 20,
+                                ),
+                                const SizedBox(width: 8),
+                                const Expanded(
+                                  child: Text(
+                                    'Enter Education',
+                                    style: TextStyle(
+                                      fontSize: 15,
+                                      fontStyle: FontStyle.italic,
+                                      color: Colors.black87,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          )
+                        : Column(
+                            children: education
+                                .map((edu) => _buildEducationItem(edu))
+                                .toList(),
+                          ),
                   ],
                 ),
               ),
@@ -2139,11 +2574,14 @@ class ResumePreviewScreen extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  edu.degree,
-                  style: const TextStyle(
+                  edu.degree.isEmpty ? 'Enter Degree' : edu.degree,
+                  style: TextStyle(
                     fontSize: 17,
                     fontWeight: FontWeight.bold,
-                    color: Color(0xFF2D3142),
+                    color: const Color(0xFF2D3142),
+                    fontStyle: edu.degree.isEmpty
+                        ? FontStyle.italic
+                        : FontStyle.normal,
                   ),
                 ),
                 const SizedBox(height: 6),
@@ -2156,22 +2594,29 @@ class ResumePreviewScreen extends StatelessWidget {
                     ),
                     const SizedBox(width: 6),
                     Text(
-                      edu.institution,
+                      edu.institution.isEmpty
+                          ? 'Enter Institution'
+                          : edu.institution,
                       style: TextStyle(
                         fontSize: 15,
                         color: Colors.grey.shade700,
+                        fontStyle: edu.institution.isEmpty
+                            ? FontStyle.italic
+                            : FontStyle.normal,
                       ),
                     ),
-                    const SizedBox(width: 12),
-                    Icon(Icons.event, size: 14, color: Colors.grey.shade600),
-                    const SizedBox(width: 6),
-                    Text(
-                      edu.year,
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.grey.shade600,
+                    if (edu.year.isNotEmpty) ...[
+                      const SizedBox(width: 12),
+                      Icon(Icons.event, size: 14, color: Colors.grey.shade600),
+                      const SizedBox(width: 6),
+                      Text(
+                        edu.year,
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey.shade600,
+                        ),
                       ),
-                    ),
+                    ],
                   ],
                 ),
               ],

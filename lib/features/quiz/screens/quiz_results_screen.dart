@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../models/quiz_models.dart';
+import '../../career/screens/career_suggestions_screen.dart';
 
 class QuizResultsScreen extends StatelessWidget {
   final QuizResult result;
@@ -75,12 +76,38 @@ class QuizResultsScreen extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             if (result.careerMatches.isEmpty)
-              const Card(
+              Card(
                 child: Padding(
-                  padding: EdgeInsets.all(16),
-                  child: Text(
-                    'No career matches found. Try improving your skills!',
-                    style: TextStyle(fontSize: 16, color: Colors.grey),
+                  padding: const EdgeInsets.all(16),
+                  child: ElevatedButton.icon(
+                    onPressed: () {
+                      // Collect all skills from skill breakdown
+                      final userSkills = result.skillBreakdown
+                          .where((skill) => skill.percentage >= 50)
+                          .map((skill) => skill.skill)
+                          .toList();
+
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) =>
+                              CareerSuggestionsPage(userSkills: userSkills),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.explore),
+                    label: const Text('Explore Career Suggestions'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.blueAccent,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 24,
+                        vertical: 12,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
                   ),
                 ),
               )

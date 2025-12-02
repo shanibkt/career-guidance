@@ -7,6 +7,7 @@ class CourseModule {
   final int durationMinutes;
   double watchedPercentage;
   bool isCompleted;
+  int? realDurationSeconds; // Store real duration from YouTube
 
   CourseModule({
     required this.id,
@@ -17,6 +18,7 @@ class CourseModule {
     required this.durationMinutes,
     this.watchedPercentage = 0.0,
     this.isCompleted = false,
+    this.realDurationSeconds,
   });
 
   Map<String, dynamic> toJson() => {

@@ -10,6 +10,7 @@ import 'package:flutter/material.dart';
 import '../../../models/user.dart';
 import '../../../services/local/storage_service.dart';
 import '../../../services/api/profile_service.dart';
+import '../../../services/api/career_progress_service.dart';
 
 class HomeScreen extends StatefulWidget {
   final User? user;
@@ -25,6 +26,7 @@ class _HomeScreenState extends State<HomeScreen> {
   User? _cachedUser;
   Map<String, dynamic>? _cachedProfile;
   String? _profileImagePath;
+  String? _selectedCareerTitle;
 
   @override
   void initState() {
@@ -42,12 +44,23 @@ class _HomeScreenState extends State<HomeScreen> {
     final profile = await StorageService.loadProfile();
     final imagePath = await StorageService.loadProfileImagePath();
 
+    // Load selected career from database first, fallback to local storage
+    Map<String, dynamic>? selectedCareer;
+    try {
+      selectedCareer = await CareerProgressService.getSelectedCareer();
+      print('📍 Loaded career from database: $selectedCareer');
+    } catch (e) {
+      print('⚠️ Failed to load career from database, using local storage: $e');
+      selectedCareer = await StorageService.loadSelectedCareer();
+    }
+
     setState(() {
       _cachedUser = userMap != null
           ? User.fromJson(userMap)
           : (_cachedUser ?? widget.user);
       _cachedProfile = profile;
       _profileImagePath = imagePath;
+      _selectedCareerTitle = selectedCareer?['careerTitle'] as String?;
     });
 
     // Fetch updated profile image from backend
@@ -289,16 +302,51 @@ class _HomeScreenState extends State<HomeScreen> {
           _buildCard(
             icon: Icons.route_outlined,
             title: 'Learning Path',
+            subtitle: _selectedCareerTitle ?? 'No career selected',
             buttonText: 'Check',
             buttonColor: const Color(0xFFB8A67A),
-            onPressed: () {
-              // Navigate to your learning path page
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) =>
-                      const LearningPathPage(careerTitle: 'Software Developer'),
-                ),
-              );
+            onPressed: () async {
+              // Load selected career from storage
+              final selectedCareer = await StorageService.loadSelectedCareer();
+
+              if (selectedCareer != null) {
+                // Navigate to learning path with selected career
+                final careerTitle = selectedCareer['careerTitle'] as String;
+                final requiredSkills =
+                    (selectedCareer['requiredSkills'] as List<dynamic>)
+                        .map((e) => e.toString())
+                        .toList();
+
+                Navigator.of(context)
+                    .push(
+                      MaterialPageRoute(
+                        builder: (_) => LearningPathPage(
+                          careerTitle: careerTitle,
+                          requiredSkills: requiredSkills,
+                        ),
+                      ),
+                    )
+                    .then((_) async {
+                      // Reload selected career when returning from learning path
+                      final updatedCareer =
+                          await StorageService.loadSelectedCareer();
+                      setState(() {
+                        _selectedCareerTitle =
+                            updatedCareer?['careerTitle'] as String?;
+                      });
+                    });
+              } else {
+                // Show message that no career is selected
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text(
+                      'No career selected yet. Please select a career from Career Suggestions first.',
+                    ),
+                    duration: Duration(seconds: 3),
+                    backgroundColor: Colors.orange,
+                  ),
+                );
+              }
             },
           ),
           const SizedBox(height: 16),
@@ -325,6 +373,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildCard({
     required IconData icon,
     required String title,
+    String? subtitle,
     required String buttonText,
     required Color buttonColor,
     required VoidCallback onPressed,
@@ -354,15 +403,34 @@ class _HomeScreenState extends State<HomeScreen> {
             child: Icon(icon, color: Colors.black87, size: 24),
           ),
           const SizedBox(width: 12),
-          // Title
+          // Title and Subtitle
           Expanded(
-            child: Text(
-              title,
-              style: const TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w600,
-                color: Colors.black87,
-              ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.black87,
+                  ),
+                ),
+                if (subtitle != null) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey[600],
+                      fontStyle: FontStyle.italic,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ],
             ),
           ),
           // Button

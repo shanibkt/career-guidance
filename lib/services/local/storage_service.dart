@@ -117,6 +117,34 @@ class StorageService {
     }
   }
 
+  /// Save selected career for learning path
+  static Future<void> saveSelectedCareer(
+    String careerTitle,
+    List<String> requiredSkills,
+  ) async {
+    final prefs = await SharedPreferences.getInstance();
+    final careerData = {
+      'careerTitle': careerTitle,
+      'requiredSkills': requiredSkills,
+      'selectedAt': DateTime.now().toIso8601String(),
+    };
+    await prefs.setString('selected_career', json.encode(careerData));
+  }
+
+  /// Load selected career
+  static Future<Map<String, dynamic>?> loadSelectedCareer() async {
+    final prefs = await SharedPreferences.getInstance();
+    final data = prefs.getString('selected_career');
+    if (data == null) return null;
+    return json.decode(data) as Map<String, dynamic>;
+  }
+
+  /// Clear selected career
+  static Future<void> clearSelectedCareer() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('selected_career');
+  }
+
   /// Save messages for a specific chat session
   static Future<void> saveChatMessages(
     String sessionId,

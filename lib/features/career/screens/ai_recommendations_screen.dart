@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 import '../../../models/career_recommendation.dart';
-import '../../../services/api/career_quiz_service.dart';
-import 'career_detail_screen.dart';
 
 class AiRecommendationsScreen extends StatelessWidget {
   final List<CareerRecommendation> recommendations;

@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../learning_path/screens/learning_path_screen.dart';
+import '../../../providers/profile_provider.dart';
+import '../../../services/local/storage_service.dart';
+import '../../../services/api/career_progress_service.dart';
 
 class CareerDetailPage extends StatelessWidget {
   final String careerTitle;
@@ -19,14 +23,38 @@ class CareerDetailPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Get user skills from profile provider or use passed skills
+    final profileProvider = Provider.of<ProfileProvider>(
+      context,
+      listen: false,
+    );
+    final profileSkills = profileProvider.skills;
+
+    // Combine passed userSkills with profile skills (remove duplicates)
+    final allUserSkills = {...userSkills, ...profileSkills}.toList();
+
+    print('🔍 Career Detail Debug:');
+    print('Career: $careerTitle');
+    print('Required Skills: $requiredSkills');
+    print('Passed User Skills: $userSkills');
+    print('Profile Skills: $profileSkills');
+    print('All User Skills: $allUserSkills');
+
     final matchedSkills = requiredSkills
         .where(
-          (skill) =>
-              userSkills.any((us) => us.toLowerCase() == skill.toLowerCase()),
+          (skill) => allUserSkills.any(
+            (us) => us.toLowerCase().trim() == skill.toLowerCase().trim(),
+          ),
         )
         .toList();
-    final matchPercentage =
-        ((matchedSkills.length / requiredSkills.length) * 100).round();
+
+    print('Matched Skills: $matchedSkills');
+
+    final matchPercentage = requiredSkills.isEmpty
+        ? 0
+        : ((matchedSkills.length / requiredSkills.length) * 100).round();
+
+    print('Match Percentage: $matchPercentage%');
 
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FA),
@@ -192,16 +220,93 @@ class CareerDetailPage extends StatelessWidget {
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => LearningPathPage(
-                              careerTitle: careerTitle,
-                              accentColor: accentColor,
-                            ),
-                          ),
+                      onPressed: () async {
+                        // Show confirmation dialog
+                        final confirmed = await showDialog<bool>(
+                          context: context,
+                          builder: (BuildContext context) {
+                            return AlertDialog(
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              title: Row(
+                                children: [
+                                  Icon(Icons.school, color: accentColor),
+                                  const SizedBox(width: 8),
+                                  const Text('Start Learning Path'),
+                                ],
+                              ),
+                              content: Text(
+                                'Are you sure you want to take this career path for "$careerTitle"?\n\nThis will be set as your active learning path.',
+                                style: const TextStyle(fontSize: 16),
+                              ),
+                              actions: [
+                                TextButton(
+                                  onPressed: () =>
+                                      Navigator.of(context).pop(false),
+                                  child: const Text(
+                                    'Cancel',
+                                    style: TextStyle(color: Colors.grey),
+                                  ),
+                                ),
+                                ElevatedButton(
+                                  onPressed: () =>
+                                      Navigator.of(context).pop(true),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: accentColor,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                  ),
+                                  child: const Text(
+                                    'Confirm',
+                                    style: TextStyle(color: Colors.white),
+                                  ),
+                                ),
+                              ],
+                            );
+                          },
                         );
+
+                        if (confirmed == true) {
+                          // Show loading indicator
+                          if (context.mounted) {
+                            showDialog(
+                              context: context,
+                              barrierDismissible: false,
+                              builder: (context) => const Center(
+                                child: CircularProgressIndicator(),
+                              ),
+                            );
+                          }
+
+                          // Save to local storage (backup)
+                          await StorageService.saveSelectedCareer(
+                            careerTitle,
+                            requiredSkills,
+                          );
+
+                          // Save to database
+                          await CareerProgressService.saveSelectedCareer(
+                            careerName: careerTitle,
+                            requiredSkills: requiredSkills,
+                          );
+
+                          // Navigate to learning path
+                          if (context.mounted) {
+                            Navigator.pop(context); // Close loading
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => LearningPathPage(
+                                  careerTitle: careerTitle,
+                                  requiredSkills: requiredSkills,
+                                  accentColor: accentColor,
+                                ),
+                              ),
+                            );
+                          }
+                        }
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.green,
