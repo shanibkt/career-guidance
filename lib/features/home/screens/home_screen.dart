@@ -6,6 +6,7 @@ import '../../learning_path/screens/learning_path_screen.dart';
 import '../../profile/screens/profile_screen.dart';
 import '../../resume_builder/screens/resume_builder_screen.dart';
 import '../../quiz/screens/ai_quiz_screen.dart';
+import '../../jobs/screens/job_finder_screen.dart';
 import 'package:flutter/material.dart';
 import '../../../models/user.dart';
 import '../../../services/local/storage_service.dart';
@@ -361,6 +362,21 @@ class _HomeScreenState extends State<HomeScreen> {
               // Navigate to your resume builder page
               Navigator.of(context).push(
                 MaterialPageRoute(builder: (_) => const ResumeBuilderScreen()),
+              );
+            },
+          ),
+          const SizedBox(height: 16),
+
+          // Job Finder section
+          _buildCard(
+            icon: Icons.work_outline,
+            title: 'Find Jobs',
+            subtitle: 'Jobs based on your selected career',
+            buttonText: 'Search',
+            buttonColor: const Color(0xFF4A7DFF),
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const JobFinderPage()),
               );
             },
           ),
