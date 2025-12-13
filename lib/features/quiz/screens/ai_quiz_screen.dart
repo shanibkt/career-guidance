@@ -171,8 +171,18 @@ class _AiQuizScreenState extends State<AiQuizScreen> {
         .toList();
 
     try {
+      print('🔵 Submitting quiz with ${answers.length} answers...');
+
       // Submit answers and get results
       final result = await CareerQuizService.submitQuiz(_quiz!.quizId, answers);
+
+      print('✅ Quiz submitted successfully!');
+      print('✅ Result - Score: ${result.totalScore}/${result.totalQuestions}');
+      print('✅ Result - Percentage: ${result.percentage}');
+      print(
+        '✅ Result - Skill breakdown count: ${result.skillBreakdown.length}',
+      );
+      print('✅ Result - Career matches count: ${result.careerMatches.length}');
 
       if (!mounted) return;
       setState(() => _loading = false);
@@ -190,18 +200,28 @@ class _AiQuizScreenState extends State<AiQuizScreen> {
         ),
       );
 
+      print('🔵 Navigating to results screen...');
       // Navigate to results screen
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (_) => QuizResultsScreen(result: result)),
       );
-    } catch (e) {
+      print('✅ Navigation initiated');
+    } catch (e, stackTrace) {
+      print('❌ Error submitting quiz: $e');
+      print('❌ Error type: ${e.runtimeType}');
+      print('❌ Stack trace: $stackTrace');
+
       if (!mounted) return;
       setState(() => _loading = false);
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+        SnackBar(
+          content: Text('Error: $e'),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 5),
+        ),
       );
     }
   }

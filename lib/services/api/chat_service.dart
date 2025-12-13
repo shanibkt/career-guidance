@@ -1,7 +1,7 @@
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'dart:async';
-import '../../core/constants/api_constants.dart';
+import '../../core/config/api_config.dart';
 import '../../services/local/storage_service.dart';
 
 class ChatService {
@@ -25,7 +25,7 @@ class ChatService {
       final token = await _getToken();
       if (token == null) throw Exception('Not authenticated');
 
-      final url = '${ApiConstants.baseUrl}${ApiConstants.chat}';
+      final url = '${ApiConfig.baseUrl}${ApiConfig.chat}';
       final requestBody = {
         'message': message,
         if (_currentSessionId != null) 'sessionId': _currentSessionId,
@@ -126,7 +126,7 @@ class ChatService {
 
       final response = await http
           .get(
-            Uri.parse('${ApiConstants.baseUrl}${ApiConstants.chatHistory}'),
+            Uri.parse('${ApiConfig.baseUrl}${ApiConfig.chatHistory}'),
             headers: {'Authorization': 'Bearer $token'},
           )
           .timeout(const Duration(seconds: 15));

@@ -5,6 +5,8 @@ import 'package:cached_network_image/cached_network_image.dart';
 import '../../../models/user.dart';
 import '../../../services/local/storage_service.dart';
 import '../../../services/api/profile_service.dart';
+import '../../../services/api/career_progress_service.dart';
+import '../../../core/utils/auth_error_handler.dart';
 import '../../auth/screens/login_screen.dart';
 import 'reg_profile_screen.dart';
 
@@ -21,6 +23,7 @@ class ProfilePage extends StatefulWidget {
 class _ProfilePageState extends State<ProfilePage> {
   Map<String, dynamic>? _profile;
   String? _imagePath;
+  String? _selectedCareerTitle;
 
   User? _serverUser;
 
@@ -32,9 +35,11 @@ class _ProfilePageState extends State<ProfilePage> {
 
   Future<void> _loadAll() async {
     // Show widget.user immediately if available
-    setState(() {
-      _serverUser = widget.user;
-    });
+    if (mounted) {
+      setState(() {
+        _serverUser = widget.user;
+      });
+    }
 
     // Try to load from backend first
     final token = await StorageService.loadAuthToken();
@@ -54,6 +59,14 @@ class _ProfilePageState extends State<ProfilePage> {
 
       debugPrint('ProfilePage._loadAll - serverProfile: $serverProfile');
 
+      // Check for 401 Unauthorized
+      if (serverProfile != null && serverProfile['_statusCode'] == 401) {
+        if (mounted) {
+          await AuthErrorHandler.handleUnauthorizedError(context);
+        }
+        return;
+      }
+
       if (serverProfile != null && serverProfile.isNotEmpty) {
         // Backend returned profile - save locally and use it
         await StorageService.saveProfile(serverProfile);
@@ -68,42 +81,114 @@ class _ProfilePageState extends State<ProfilePage> {
               : backendImagePath;
           final fullImageUrl = '${ProfileService.effectiveBaseUrl}/$cleanPath';
           await StorageService.saveProfileImagePath(fullImageUrl);
-          setState(() {
-            _profile = serverProfile;
-            _serverUser = cachedUser;
-            _imagePath = fullImageUrl;
-          });
+          if (mounted) {
+            setState(() {
+              _profile = serverProfile;
+              _serverUser = cachedUser;
+              _imagePath = fullImageUrl;
+            });
+          }
         } else {
-          setState(() {
-            _profile = serverProfile;
-            _serverUser = cachedUser;
-          });
+          if (mounted) {
+            setState(() {
+              _profile = serverProfile;
+              _serverUser = cachedUser;
+            });
+          }
         }
         debugPrint('ProfilePage._loadAll - loaded from backend: $_profile');
         debugPrint('ProfilePage._loadAll - image path: $_imagePath');
+        debugPrint('🟢 CHECKPOINT 1: After image path, before else block');
       } else {
+        debugPrint('🔴 CHECKPOINT 2: In else block - no server profile');
         // Backend didn't return profile - use local cache
         final profile = await StorageService.loadProfile();
         final imagePath = await StorageService.loadProfileImagePath();
+        if (mounted) {
+          setState(() {
+            _profile = profile;
+            _serverUser = cachedUser;
+            _imagePath = imagePath;
+          });
+        }
+        debugPrint('ProfilePage._loadAll - loaded from local cache: $_profile');
+        debugPrint('🔴 CHECKPOINT 3: Loaded from local cache');
+      }
+      debugPrint(
+        '🟡 CHECKPOINT 4: After serverProfile if-else, still in token block',
+      );
+    } else {
+      debugPrint('🔴 CHECKPOINT 5: No token or user, loading local');
+      // No token or user - use local cache only
+      final profile = await StorageService.loadProfile();
+      final imagePath = await StorageService.loadProfileImagePath();
+      if (mounted) {
         setState(() {
           _profile = profile;
           _serverUser = cachedUser;
           _imagePath = imagePath;
         });
-        debugPrint('ProfilePage._loadAll - loaded from local cache: $_profile');
       }
-    } else {
-      // No token or user - use local cache only
-      final profile = await StorageService.loadProfile();
-      final imagePath = await StorageService.loadProfileImagePath();
-      setState(() {
-        _profile = profile;
-        _serverUser = cachedUser;
-        _imagePath = imagePath;
-      });
       debugPrint(
         'ProfilePage._loadAll - no token, loaded from local: $_profile',
       );
+      debugPrint('🔴 CHECKPOINT 6: After loading local without token');
+    }
+
+    debugPrint('⭐⭐⭐ CHECKPOINT 7: REACHED END OF TOKEN BLOCKS!');
+    debugPrint('⭐ ProfilePage._loadAll - After all profile loading');
+
+    // Load selected career from database or local storage
+    try {
+      debugPrint('🔵 ProfilePage._loadAll - About to call _loadSelectedCareer');
+      await _loadSelectedCareer();
+      debugPrint(
+        '🔵 ProfilePage._loadAll - Finished _loadSelectedCareer, career: $_selectedCareerTitle',
+      );
+    } catch (e, stackTrace) {
+      debugPrint('❌ ERROR loading selected career: $e');
+      debugPrint('Stack trace: $stackTrace');
+    }
+  }
+
+  Future<void> _loadSelectedCareer() async {
+    debugPrint('🔄 ProfilePage._loadSelectedCareer - START');
+    try {
+      final selectedCareer = await CareerProgressService.getSelectedCareer();
+      debugPrint(
+        '🔄 ProfilePage._loadSelectedCareer - Got career: $selectedCareer',
+      );
+      if (selectedCareer != null && selectedCareer['_statusCode'] != 401) {
+        if (mounted) {
+          setState(() {
+            _selectedCareerTitle = selectedCareer['careerName'] as String?;
+          });
+          debugPrint(
+            '✅ ProfilePage._loadSelectedCareer - Set career title: $_selectedCareerTitle',
+          );
+        }
+      } else {
+        debugPrint(
+          '⚠️ ProfilePage._loadSelectedCareer - Career is null or 401',
+        );
+      }
+    } catch (e) {
+      debugPrint(
+        '⚠️ ProfilePage._loadSelectedCareer - Error: $e, trying local storage',
+      );
+      // Fallback to local storage
+      final localCareer = await StorageService.loadSelectedCareer();
+      debugPrint(
+        '📦 ProfilePage._loadSelectedCareer - Local career: $localCareer',
+      );
+      if (mounted) {
+        setState(() {
+          _selectedCareerTitle = localCareer?['careerName'] as String?;
+        });
+        debugPrint(
+          '✅ ProfilePage._loadSelectedCareer - Set from local: $_selectedCareerTitle',
+        );
+      }
     }
   }
 
@@ -424,11 +509,18 @@ class _ProfilePageState extends State<ProfilePage> {
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(color: Colors.grey[300]!),
                       ),
-                      child: const Text(
-                        'career not selected',
+                      child: Text(
+                        _selectedCareerTitle ?? 'career not selected',
                         style: TextStyle(
-                          color: Colors.black54,
-                          fontStyle: FontStyle.italic,
+                          color: _selectedCareerTitle != null
+                              ? Colors.black87
+                              : Colors.black54,
+                          fontStyle: _selectedCareerTitle != null
+                              ? FontStyle.normal
+                              : FontStyle.italic,
+                          fontWeight: _selectedCareerTitle != null
+                              ? FontWeight.w500
+                              : FontWeight.normal,
                         ),
                       ),
                     ),

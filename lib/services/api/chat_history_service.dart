@@ -1,6 +1,6 @@
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import '../../core/constants/api_constants.dart';
+import '../../core/config/api_config.dart';
 import '../../services/local/storage_service.dart';
 
 class ChatHistoryService {
@@ -18,7 +18,7 @@ class ChatHistoryService {
 
       final response = await http
           .get(
-            Uri.parse('${ApiConstants.baseUrl}/api/chat/sessions'),
+            Uri.parse('${ApiConfig.baseUrl}/api/chat/sessions'),
             headers: {'Authorization': 'Bearer $token'},
           )
           .timeout(const Duration(seconds: 15));
@@ -55,7 +55,7 @@ class ChatHistoryService {
       final response = await http
           .get(
             Uri.parse(
-              '${ApiConstants.baseUrl}/api/chat/sessions/$sessionId/messages',
+              '${ApiConfig.baseUrl}/api/chat/sessions/$sessionId/messages',
             ),
             headers: {'Authorization': 'Bearer $token'},
           )
@@ -94,7 +94,7 @@ class ChatHistoryService {
       print('💾 Saving session: $sessionId');
 
       final response = await http.post(
-        Uri.parse('${ApiConstants.baseUrl}/api/chat/sessions'),
+        Uri.parse('${ApiConfig.baseUrl}/api/chat/sessions'),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',
@@ -133,7 +133,7 @@ class ChatHistoryService {
       if (token == null) throw Exception('Not authenticated');
 
       final response = await http.post(
-        Uri.parse('${ApiConstants.baseUrl}/api/chat/messages'),
+        Uri.parse('${ApiConfig.baseUrl}/api/chat/messages'),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',
@@ -162,7 +162,7 @@ class ChatHistoryService {
       print('🗑️ Deleting session: $sessionId');
 
       final response = await http.delete(
-        Uri.parse('${ApiConstants.baseUrl}/api/chat/sessions/$sessionId'),
+        Uri.parse('${ApiConfig.baseUrl}/api/chat/sessions/$sessionId'),
         headers: {'Authorization': 'Bearer $token'},
       );
 
@@ -190,7 +190,7 @@ class ChatHistoryService {
       print('🗑️ Clearing all chat history...');
 
       final response = await http.delete(
-        Uri.parse('${ApiConstants.baseUrl}/api/chat/sessions'),
+        Uri.parse('${ApiConfig.baseUrl}/api/chat/sessions'),
         headers: {'Authorization': 'Bearer $token'},
       );
 
@@ -223,7 +223,7 @@ class ChatHistoryService {
       final response = await http
           .get(
             Uri.parse(
-              '${ApiConstants.baseUrl}/api/chat/search?query=${Uri.encodeComponent(query)}',
+              '${ApiConfig.baseUrl}/api/chat/search?query=${Uri.encodeComponent(query)}',
             ),
             headers: {'Authorization': 'Bearer $token'},
           )
@@ -254,7 +254,7 @@ class ChatHistoryService {
 
       final response = await http
           .get(
-            Uri.parse('${ApiConstants.baseUrl}/api/chat/stats'),
+            Uri.parse('${ApiConfig.baseUrl}/api/chat/stats'),
             headers: {'Authorization': 'Bearer $token'},
           )
           .timeout(const Duration(seconds: 10));

@@ -30,6 +30,7 @@ class JobProvider extends ChangeNotifier {
 
   // Search jobs with filters
   Future<void> searchJobs(JobSearchFilter filter) async {
+    debugPrint('🔎 JobProvider: Searching jobs with filter: ${filter.query}');
     try {
       _isLoading = true;
       _errorMessage = null;
@@ -41,9 +42,13 @@ class JobProvider extends ChangeNotifier {
       _jobs = response.jobs;
       _currentPage = response.currentPage;
       _totalPages = response.totalPages;
+      debugPrint(
+        '✅ JobProvider: Found ${_jobs.length} jobs (page $_currentPage of $_totalPages)',
+      );
       _isLoading = false;
       notifyListeners();
     } catch (e) {
+      debugPrint('❌ JobProvider: Search error: $e');
       _errorMessage = e.toString();
       _isLoading = false;
       notifyListeners();
@@ -74,17 +79,29 @@ class JobProvider extends ChangeNotifier {
   }
 
   // Get personalized job recommendations based on career and skills
-  Future<void> getPersonalizedJobs(String? careerTitle, List<String>? skills) async {
+  Future<void> getPersonalizedJobs(
+    String? careerTitle,
+    List<String>? skills,
+  ) async {
+    debugPrint(
+      '📋 JobProvider: Getting personalized jobs for career: $careerTitle, skills: $skills',
+    );
     try {
       _isLoading = true;
       _errorMessage = null;
       notifyListeners();
 
-      _personalizedJobs =
-          await JobService.getPersonalizedJobs(careerTitle, skills);
+      _personalizedJobs = await JobService.getPersonalizedJobs(
+        careerTitle,
+        skills,
+      );
+      debugPrint(
+        '✅ JobProvider: Loaded ${_personalizedJobs.length} personalized jobs',
+      );
       _isLoading = false;
       notifyListeners();
     } catch (e) {
+      debugPrint('❌ JobProvider: Error loading personalized jobs: $e');
       _errorMessage = e.toString();
       _isLoading = false;
       notifyListeners();
@@ -94,10 +111,7 @@ class JobProvider extends ChangeNotifier {
   // Save/unsave job
   Future<void> toggleSaveJob(Job job) async {
     try {
-      final updatedJob = await JobService.toggleSaveJob(
-        job.id,
-        !job.isSaved,
-      );
+      final updatedJob = await JobService.toggleSaveJob(job.id, !job.isSaved);
 
       final index = _jobs.indexWhere((j) => j.id == job.id);
       if (index != -1) {

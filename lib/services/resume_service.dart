@@ -1,6 +1,9 @@
 import 'dart:convert';
+import 'dart:math' show min;
+import 'dart:async' show TimeoutException;
 import 'package:http/http.dart' as http;
 import 'local/storage_service.dart';
+import '../core/config/api_config.dart';
 
 // Experience model
 class Experience {
@@ -120,7 +123,7 @@ class ResumeData {
 }
 
 class ResumeService {
-  static const String baseUrl = 'http://192.168.1.4:5087/api';
+  static String get baseUrl => ApiConfig.baseUrl;
 
   // Get authentication headers
   Future<Map<String, String>> _getHeaders() async {
@@ -136,7 +139,7 @@ class ResumeService {
     try {
       final headers = await _getHeaders();
       final response = await http.post(
-        Uri.parse('$baseUrl/resume/save'),
+        Uri.parse('$baseUrl/api/resume/save'),
         headers: headers,
         body: jsonEncode(resumeData.toJson()),
       );
@@ -164,7 +167,7 @@ class ResumeService {
     try {
       final headers = await _getHeaders();
       final response = await http.get(
-        Uri.parse('$baseUrl/resume'),
+        Uri.parse('$baseUrl/api/resume'),
         headers: headers,
       );
 
@@ -194,7 +197,7 @@ class ResumeService {
     try {
       final headers = await _getHeaders();
       final response = await http.delete(
-        Uri.parse('$baseUrl/resume'),
+        Uri.parse('$baseUrl/api/resume'),
         headers: headers,
       );
 
@@ -359,5 +362,99 @@ class ResumeService {
     if (score >= 75) return 'Good';
     if (score >= 60) return 'Fair';
     return 'Needs Improvement';
+  }
+
+  // AI Enhance Professional Summary
+  Future<Map<String, dynamic>> enhanceSummary({
+    required String currentSummary,
+    required String jobTitle,
+    required List<String> skills,
+    required List<String> experiences,
+  }) async {
+    try {
+      final headers = await _getHeaders();
+
+      // Convert experience strings to the expected format
+      // Format: "Role at Company: Description"
+      List<Map<String, String>> experienceList = [];
+      for (var exp in experiences) {
+        // Parse "Role at Company: Description" format
+        if (exp.contains(' at ') && exp.contains(':')) {
+          final parts = exp.split(':');
+          final roleCompany = parts[0];
+          final description = parts.length > 1 ? parts[1].trim() : '';
+
+          if (roleCompany.contains(' at ')) {
+            final roleCompanyParts = roleCompany.split(' at ');
+            experienceList.add({
+              'role': roleCompanyParts[0].trim(),
+              'company': roleCompanyParts.length > 1
+                  ? roleCompanyParts[1].trim()
+                  : '',
+              'period': '',
+              'description': description,
+            });
+          }
+        }
+      }
+
+      final body = jsonEncode({
+        'currentSummary': currentSummary,
+        'jobTitle': jobTitle,
+        'skills': skills,
+        'experiences': experienceList,
+      });
+
+      print('🔵 ResumeService.enhanceSummary - Sending request');
+      print('🔵 URL: $baseUrl/api/resume/enhance-summary');
+      print('🔵 Experiences parsed: ${experienceList.length}');
+
+      final response = await http
+          .post(
+            Uri.parse('$baseUrl/api/resume/enhance-summary'),
+            headers: headers,
+            body: body,
+          )
+          .timeout(
+            Duration(seconds: 30),
+            onTimeout: () {
+              throw TimeoutException('Request timed out');
+            },
+          );
+
+      print('🟢 Response status: ${response.statusCode}');
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final summary = data['enhancedSummary'] ?? data['summary'] ?? '';
+
+        if (summary.isEmpty) {
+          print('❌ Empty summary in response: ${response.body}');
+          return {'success': false, 'message': 'Empty AI response'};
+        }
+
+        print(
+          '✅ Enhanced summary received: ${summary.substring(0, min(100, summary.length))}...',
+        );
+        return {'success': true, 'enhancedSummary': summary};
+      } else {
+        print('❌ Error status ${response.statusCode}: ${response.body}');
+        try {
+          final error = jsonDecode(response.body);
+          return {
+            'success': false,
+            'message': error['message'] ?? 'Server error',
+          };
+        } catch (_) {
+          return {
+            'success': false,
+            'message': 'Server error: ${response.statusCode}',
+          };
+        }
+      }
+    } catch (e) {
+      print('❌ Exception: $e');
+      return {'success': false, 'message': 'Error: ${e.toString()}'};
+    }
   }
 }

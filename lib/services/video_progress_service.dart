@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'local/storage_service.dart';
+import '../core/config/api_config.dart';
 
 // Video progress model
 class VideoProgress {
@@ -111,7 +112,7 @@ class LearningPathSummary {
 }
 
 class VideoProgressService {
-  static const String baseUrl = 'http://192.168.1.4:5087/api';
+  static String get baseUrl => ApiConfig.baseUrl;
 
   // Get authentication headers
   Future<Map<String, String>> _getHeaders() async {

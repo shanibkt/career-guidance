@@ -1,5 +1,9 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_crashlytics/firebase_crashlytics.dart';
+import 'dart:async';
 import 'core/theme/app_theme.dart';
 import 'core/utils/network_helper.dart';
 import 'providers/auth_provider.dart';
@@ -15,29 +19,57 @@ import 'features/home/screens/home_screen.dart';
 import 'features/quiz/screens/quiz_screen.dart';
 import 'features/jobs/screens/job_finder_screen.dart';
 
-// Toggle to true to run the app without contacting backend/auth services.
-// Use `--dart-define=OFFLINE_MODE=false` when building/running to re-enable backend.
-const bool kOfflineMode = bool.fromEnvironment('OFFLINE_MODE', defaultValue: true);
+void main() {
+  runZonedGuarded<Future<void>>(
+    () async {
+      WidgetsFlutterBinding.ensureInitialized();
 
-void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
+      // Initialize Firebase
+      await Firebase.initializeApp();
 
-  // Run network diagnostics on startup if not in offline mode
-  if (!kOfflineMode) {
-    await NetworkHelper.runDiagnostics();
-  }
+      // Force enable Crashlytics collection (even in debug mode)
+      await FirebaseCrashlytics.instance.setCrashlyticsCollectionEnabled(true);
 
-  runApp(
-    MultiProvider(
-      providers: [
-        ChangeNotifierProvider<AuthProvider>(create: (_) => AuthProvider()),
-        ChangeNotifierProvider<ProfileProvider>(
-          create: (_) => ProfileProvider(),
+      // Log test message to verify Crashlytics is working
+      FirebaseCrashlytics.instance.log(
+        '🔥 Firebase Crashlytics initialized and enabled',
+      );
+
+      // Print status
+      print('🔥 Firebase initialized successfully');
+      print(
+        '🔥 Crashlytics enabled: ${FirebaseCrashlytics.instance.isCrashlyticsCollectionEnabled}',
+      );
+
+      // Pass all uncaught errors from the framework to Crashlytics
+      FlutterError.onError =
+          FirebaseCrashlytics.instance.recordFlutterFatalError;
+
+      // Pass all uncaught asynchronous errors that aren't handled by the Flutter framework to Crashlytics
+      PlatformDispatcher.instance.onError = (error, stack) {
+        FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
+        return true;
+      };
+
+      // Run network diagnostics on startup
+      await NetworkHelper.runDiagnostics();
+
+      runApp(
+        MultiProvider(
+          providers: [
+            ChangeNotifierProvider<AuthProvider>(create: (_) => AuthProvider()),
+            ChangeNotifierProvider<ProfileProvider>(
+              create: (_) => ProfileProvider(),
+            ),
+            ChangeNotifierProvider<JobProvider>(create: (_) => JobProvider()),
+          ],
+          child: const MyApp(),
         ),
-        ChangeNotifierProvider<JobProvider>(create: (_) => JobProvider()),
-      ],
-      child: const MyApp(),
-    ),
+      );
+    },
+    (error, stack) {
+      FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
+    },
   );
 }
 
@@ -52,13 +84,11 @@ class _MyAppState extends State<MyApp> {
   @override
   void initState() {
     super.initState();
-    // Initialize providers (skip when running in offline mode)
-    if (!kOfflineMode) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        context.read<AuthProvider>().initialize();
-        context.read<ProfileProvider>().initialize();
-      });
-    }
+    // Initialize providers
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<AuthProvider>().initialize();
+      context.read<ProfileProvider>().initialize();
+    });
   }
 
   @override
@@ -67,10 +97,7 @@ class _MyAppState extends State<MyApp> {
       builder: (context, authProvider, _) {
         Widget start;
 
-        // If offline mode is enabled, open the app directly to HomeScreen
-        if (kOfflineMode) {
-          start = const HomeScreen();
-        } else if (authProvider.isLoading) {
+        if (authProvider.isLoading) {
           start = const Scaffold(
             body: Center(child: CircularProgressIndicator()),
           );

@@ -1,6 +1,6 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import '../../core/constants/api_constants.dart';
+import '../../core/config/api_config.dart';
 import '../local/storage_service.dart';
 
 class CareerProgressService {
@@ -17,9 +17,7 @@ class CareerProgressService {
         return false;
       }
 
-      final url = Uri.parse(
-        '${ApiConstants.baseUrl}/api/careerprogress/select',
-      );
+      final url = Uri.parse('${ApiConfig.baseUrl}/api/careerprogress/select');
       print('📡 Saving selected career: $careerName');
 
       final response = await http
@@ -60,9 +58,7 @@ class CareerProgressService {
         return null;
       }
 
-      final url = Uri.parse(
-        '${ApiConstants.baseUrl}/api/careerprogress/selected',
-      );
+      final url = Uri.parse('${ApiConfig.baseUrl}/api/careerprogress/selected');
       print('📡 Fetching selected career');
 
       final response = await http
@@ -82,6 +78,9 @@ class CareerProgressService {
       } else if (response.statusCode == 404) {
         print('⚠️ No career selected');
         return null;
+      } else if (response.statusCode == 401) {
+        print('❌ Unauthorized - token expired');
+        return {'_statusCode': 401};
       } else {
         print('❌ Failed to load career: ${response.statusCode}');
         return null;
@@ -111,9 +110,7 @@ class CareerProgressService {
         return false;
       }
 
-      final url = Uri.parse(
-        '${ApiConstants.baseUrl}/api/careerprogress/course',
-      );
+      final url = Uri.parse('${ApiConfig.baseUrl}/api/careerprogress/course');
 
       final response = await http
           .post(
@@ -164,9 +161,9 @@ class CareerProgressService {
 
       final url = careerName != null
           ? Uri.parse(
-              '${ApiConstants.baseUrl}/api/careerprogress/courses?careerName=${Uri.encodeComponent(careerName)}',
+              '${ApiConfig.baseUrl}/api/careerprogress/courses?careerName=${Uri.encodeComponent(careerName)}',
             )
-          : Uri.parse('${ApiConstants.baseUrl}/api/careerprogress/courses');
+          : Uri.parse('${ApiConfig.baseUrl}/api/careerprogress/courses');
 
       final response = await http
           .get(

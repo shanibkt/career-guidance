@@ -1,5 +1,7 @@
 import 'dart:io';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:firebase_crashlytics/firebase_crashlytics.dart';
+import 'package:flutter/foundation.dart';
 import '../../career/screens/career_suggestions_screen.dart';
 import '../../chat/screens/chat_screen.dart';
 import '../../learning_path/screens/learning_path_screen.dart';
@@ -12,6 +14,7 @@ import '../../../models/user.dart';
 import '../../../services/local/storage_service.dart';
 import '../../../services/api/profile_service.dart';
 import '../../../services/api/career_progress_service.dart';
+import '../../../core/utils/auth_error_handler.dart';
 
 class HomeScreen extends StatefulWidget {
   final User? user;
@@ -50,6 +53,14 @@ class _HomeScreenState extends State<HomeScreen> {
     try {
       selectedCareer = await CareerProgressService.getSelectedCareer();
       print('📍 Loaded career from database: $selectedCareer');
+
+      // Check for 401 Unauthorized
+      if (selectedCareer != null && selectedCareer['_statusCode'] == 401) {
+        if (mounted) {
+          await AuthErrorHandler.handleUnauthorizedError(context);
+        }
+        return;
+      }
     } catch (e) {
       print('⚠️ Failed to load career from database, using local storage: $e');
       selectedCareer = await StorageService.loadSelectedCareer();
@@ -61,7 +72,7 @@ class _HomeScreenState extends State<HomeScreen> {
           : (_cachedUser ?? widget.user);
       _cachedProfile = profile;
       _profileImagePath = imagePath;
-      _selectedCareerTitle = selectedCareer?['careerTitle'] as String?;
+      _selectedCareerTitle = selectedCareer?['careerName'] as String?;
     });
 
     // Fetch updated profile image from backend
@@ -73,6 +84,14 @@ class _HomeScreenState extends State<HomeScreen> {
         cachedUser!.id,
         token,
       );
+
+      // Check for 401 Unauthorized
+      if (serverProfile != null && serverProfile['_statusCode'] == 401) {
+        if (mounted) {
+          await AuthErrorHandler.handleUnauthorizedError(context);
+        }
+        return;
+      }
 
       if (serverProfile != null && serverProfile.isNotEmpty) {
         final backendImagePath = serverProfile['profileImagePath'] as String?;
@@ -87,6 +106,28 @@ class _HomeScreenState extends State<HomeScreen> {
             _profileImagePath = fullImageUrl;
           });
         }
+      }
+    }
+  }
+
+  // Refresh selected career from database or local storage
+  Future<void> _refreshSelectedCareer() async {
+    try {
+      final updatedCareer = await CareerProgressService.getSelectedCareer();
+      if (updatedCareer != null && updatedCareer['_statusCode'] != 401) {
+        if (mounted) {
+          setState(() {
+            _selectedCareerTitle = updatedCareer['careerName'] as String?;
+          });
+        }
+      }
+    } catch (e) {
+      // Fallback to local storage
+      final localCareer = await StorageService.loadSelectedCareer();
+      if (mounted) {
+        setState(() {
+          _selectedCareerTitle = localCareer?['careerName'] as String?;
+        });
       }
     }
   }
@@ -289,12 +330,43 @@ class _HomeScreenState extends State<HomeScreen> {
             buttonText: '3 New',
             buttonColor: const Color(0xFFB8A67A),
             onPressed: () {
-              // Navigate to your career suggestions page
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => const CareerSuggestionsPage(),
-                ),
-              );
+              // Get user skills from cached profile
+              final userSkills =
+                  (_cachedProfile?['skills'] as List?)
+                      ?.map((skill) => skill.toString())
+                      .toList() ??
+                  [];
+
+              // Navigate to your career suggestions page with user skills
+              Navigator.of(context)
+                  .push(
+                    MaterialPageRoute(
+                      builder: (_) =>
+                          CareerSuggestionsPage(userSkills: userSkills),
+                    ),
+                  )
+                  .then((_) async {
+                    // Reload selected career when returning from career suggestions
+                    try {
+                      final updatedCareer =
+                          await CareerProgressService.getSelectedCareer();
+                      if (updatedCareer != null &&
+                          updatedCareer['_statusCode'] != 401) {
+                        setState(() {
+                          _selectedCareerTitle =
+                              updatedCareer['careerName'] as String?;
+                        });
+                      }
+                    } catch (e) {
+                      // Fallback to local storage
+                      final localCareer =
+                          await StorageService.loadSelectedCareer();
+                      setState(() {
+                        _selectedCareerTitle =
+                            localCareer?['careerTitle'] as String?;
+                      });
+                    }
+                  });
             },
           ),
           const SizedBox(height: 16),
@@ -312,11 +384,24 @@ class _HomeScreenState extends State<HomeScreen> {
 
               if (selectedCareer != null) {
                 // Navigate to learning path with selected career
-                final careerTitle = selectedCareer['careerTitle'] as String;
+                // Use careerName (new format) or careerTitle (old format) for backward compatibility
+                final careerTitle =
+                    (selectedCareer['careerName'] ??
+                            selectedCareer['careerTitle'])
+                        as String?;
                 final requiredSkills =
-                    (selectedCareer['requiredSkills'] as List<dynamic>)
-                        .map((e) => e.toString())
+                    (selectedCareer['requiredSkills'] as List<dynamic>?)
+                        ?.map((e) => e.toString())
                         .toList();
+
+                if (careerTitle == null || requiredSkills == null) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Please select a career first'),
+                    ),
+                  );
+                  return;
+                }
 
                 Navigator.of(context)
                     .push(
@@ -375,9 +460,9 @@ class _HomeScreenState extends State<HomeScreen> {
             buttonText: 'Search',
             buttonColor: const Color(0xFF4A7DFF),
             onPressed: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const JobFinderPage()),
-              );
+              Navigator.of(
+                context,
+              ).push(MaterialPageRoute(builder: (_) => const JobFinderPage()));
             },
           ),
           const SizedBox(height: 20),
@@ -484,10 +569,15 @@ class _HomeScreenState extends State<HomeScreen> {
     bool isActive = _currentIndex == index;
 
     return InkWell(
-      onTap: () {
+      onTap: () async {
         setState(() {
           _currentIndex = index;
         });
+
+        // Refresh career selection when switching to home tab
+        if (index == 0) {
+          _refreshSelectedCareer();
+        }
       },
       borderRadius: BorderRadius.circular(20),
       child: AnimatedContainer(

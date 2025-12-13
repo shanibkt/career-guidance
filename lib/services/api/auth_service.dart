@@ -4,7 +4,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:http/http.dart' as http;
 import '../../models/user.dart';
-import '../../core/constants/api_constants.dart';
+import '../../core/config/api_config.dart';
 
 class AuthResult {
   final bool success;
@@ -18,12 +18,12 @@ class AuthResult {
 class AuthService {
   // Use centralized API configuration
   static String get _effectiveBaseUrl {
-    debugPrint('🔵 AuthService using base URL: ${ApiConstants.baseUrl}');
-    return ApiConstants.baseUrl;
+    debugPrint('🔵 AuthService using base URL: ${ApiConfig.baseUrl}');
+    return ApiConfig.baseUrl;
   }
 
   // Public method to get API URL for debugging
-  static String getApiUrl() => ApiConstants.baseUrl;
+  static String getApiUrl() => ApiConfig.baseUrl;
 
   /// POST /api/auth/login
   /// body: { "email": "...", "password": "..." }

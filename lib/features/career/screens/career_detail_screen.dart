@@ -295,6 +295,11 @@ class CareerDetailPage extends StatelessWidget {
                           // Navigate to learning path
                           if (context.mounted) {
                             Navigator.pop(context); // Close loading
+                            // Pop all career screens and go to learning path
+                            // This ensures back button from learning path goes to home
+                            Navigator.of(
+                              context,
+                            ).popUntil((route) => route.isFirst);
                             Navigator.push(
                               context,
                               MaterialPageRoute(

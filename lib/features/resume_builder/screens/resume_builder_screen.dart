@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'dart:math' show min;
 import '../../../providers/profile_provider.dart';
 import '../../../services/local/storage_service.dart';
 import '../../../services/api/chat_service.dart';
+import '../../../services/resume_service.dart';
 
 class ResumeBuilderScreen extends StatefulWidget {
   const ResumeBuilderScreen({super.key});
@@ -38,6 +40,7 @@ class _ResumeBuilderScreenState extends State<ResumeBuilderScreen>
     final profileProvider = context.read<ProfileProvider>();
     final userMap = await StorageService.loadUser();
     final profile = profileProvider.profileData;
+    final selectedCareer = await StorageService.loadSelectedCareer();
 
     setState(() {
       // Load user data
@@ -51,7 +54,10 @@ class _ResumeBuilderScreenState extends State<ResumeBuilderScreen>
           '';
       _locationController.text = profile?['location']?.toString() ?? '';
       _linkedinController.text = profile?['linkedin']?.toString() ?? '';
+
+      // Use selected career as job title if available
       _titleController.text =
+          selectedCareer?['careerName']?.toString() ??
           profile?['jobTitle']?.toString() ??
           profile?['title']?.toString() ??
           '';
@@ -339,60 +345,43 @@ class _ResumeBuilderScreenState extends State<ResumeBuilderScreen>
     );
 
     try {
-      // Build prompt for AI
-      String aiPrompt = 'Create a professional resume summary for:\n\n';
+      // Prepare data for AI enhancement
+      final jobTitle = _titleController.text.isNotEmpty
+          ? _titleController.text
+          : (profile?['careerPath'] ?? 'Professional');
 
-      if (userMap?['fullName'] != null) {
-        aiPrompt += 'Name: ${userMap!['fullName']}\n';
-      }
+      final experienceDescriptions = experiences
+          .where((e) => e.description.isNotEmpty)
+          .map((e) => '${e.role} at ${e.company}: ${e.description}')
+          .toList();
 
-      if (_titleController.text.isNotEmpty) {
-        aiPrompt += 'Job Title: ${_titleController.text}\n';
-      }
+      print('🔵 Resume AI Enhancement Starting');
+      print('🔵 Job Title: $jobTitle');
+      print('🔵 Skills: $skills');
+      print('🔵 Experience count: ${experienceDescriptions.length}');
+      print('🔵 Experiences: $experienceDescriptions');
+      print(
+        '🔵 Current Summary: ${_summaryController.text.substring(0, min(50, _summaryController.text.length))}...',
+      );
 
-      if (profile?['educationLevel'] != null || profile?['education'] != null) {
-        final education = profile!['educationLevel'] ?? profile['education'];
-        aiPrompt += 'Education: $education\n';
-      }
+      // Call the dedicated enhance-summary endpoint
+      final result = await ResumeService().enhanceSummary(
+        currentSummary: _summaryController.text,
+        jobTitle: jobTitle,
+        skills: skills,
+        experiences: experienceDescriptions,
+      );
 
-      if (profile?['fieldOfStudy'] != null || profile?['field'] != null) {
-        final field = profile!['fieldOfStudy'] ?? profile['field'];
-        aiPrompt += 'Field of Study: $field\n';
-      }
-
-      if (skills.isNotEmpty) {
-        aiPrompt += 'Skills: ${skills.join(', ')}\n';
-      }
-
-      if (experiences.isNotEmpty) {
-        aiPrompt += '\nExperience:\n';
-        for (var exp in experiences.take(3)) {
-          if (exp.role.isNotEmpty && exp.company.isNotEmpty) {
-            aiPrompt += '- ${exp.role} at ${exp.company}';
-            if (exp.period.isNotEmpty) aiPrompt += ' (${exp.period})';
-            aiPrompt += '\n';
-            if (exp.description.isNotEmpty) {
-              aiPrompt += '  ${exp.description}\n';
-            }
-          }
-        }
-      }
-
-      if (_summaryController.text.isNotEmpty) {
-        aiPrompt += '\nCurrent Summary: ${_summaryController.text}\n';
-      }
-
-      aiPrompt +=
-          '\nPlease write a compelling, professional resume summary (2-4 sentences) that highlights key strengths, experience, and value proposition. Make it engaging and ATS-friendly.';
-
-      // Call AI service
-      final aiResponse = await ChatService.sendMessage(aiPrompt);
+      print('🟢 Result received: ${result['success']}');
+      print('🟢 Enhanced Summary: ${result['enhancedSummary']}');
 
       if (mounted) Navigator.pop(context); // Close loading dialog
 
-      if (aiResponse != null && aiResponse.isNotEmpty) {
+      if (result['success'] == true &&
+          result['enhancedSummary'] != null &&
+          result['enhancedSummary'].toString().isNotEmpty) {
         setState(() {
-          _summaryController.text = aiResponse.trim();
+          _summaryController.text = result['enhancedSummary'].trim();
         });
 
         if (mounted) {
@@ -414,7 +403,8 @@ class _ResumeBuilderScreenState extends State<ResumeBuilderScreen>
           );
         }
       } else {
-        throw Exception('Empty AI response');
+        // AI returned empty or failed
+        throw Exception(result['message'] ?? 'AI enhancement failed');
       }
     } catch (e) {
       if (mounted) Navigator.pop(context); // Close loading dialog

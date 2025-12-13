@@ -1,18 +1,16 @@
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
-import '../constants/api_constants.dart';
+import '../config/api_config.dart';
 
 class NetworkHelper {
   /// Test if the backend API is reachable
   static Future<bool> testConnection() async {
     try {
-      debugPrint('🔍 Testing connection to: ${ApiConstants.baseUrl}');
+      debugPrint('🔍 Testing connection to: ${ApiConfig.baseUrl}');
 
       // Test the careers endpoint which is publicly accessible
-      final uri = Uri.parse(
-        '${ApiConstants.baseUrl}/api/recommendations/careers',
-      );
+      final uri = Uri.parse('${ApiConfig.baseUrl}/api/recommendations/careers');
       final response = await http
           .get(uri)
           .timeout(
@@ -40,7 +38,7 @@ class NetworkHelper {
       debugPrint('❌ Connection failed: ${e.message}');
       debugPrint('   Check:');
       debugPrint('   1. Backend server is running');
-      debugPrint('   2. IP address is correct: ${ApiConstants.baseUrl}');
+      debugPrint('   2. IP address is correct: ${ApiConfig.baseUrl}');
       debugPrint('   3. Device is on same WiFi network');
       debugPrint('   4. Firewall is not blocking port 5001');
       return false;
@@ -64,7 +62,7 @@ class NetworkHelper {
         }
       }
 
-      info.writeln('\n🔗 Backend URL: ${ApiConstants.baseUrl}');
+      info.writeln('\n🔗 Backend URL: ${ApiConfig.baseUrl}');
       return info.toString();
     } catch (e) {
       return 'Error getting network info: $e';
@@ -94,7 +92,7 @@ class NetworkHelper {
       debugPrint(
         '   2. Get your PC IP: ipconfig (Windows) or ifconfig (Mac/Linux)',
       );
-      debugPrint('   3. Update ApiConstants.baseUrl with your PC IP');
+      debugPrint('   3. Update ApiConfig.baseUrl with your PC IP');
       debugPrint('   4. Make sure device and PC are on same WiFi');
       debugPrint('   5. Check firewall settings');
     }

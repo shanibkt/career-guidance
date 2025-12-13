@@ -2,14 +2,25 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:http/http.dart' as http;
-import '../../core/constants/api_constants.dart';
+import '../../core/config/api_config.dart';
 
 class ProfileService {
   // Use centralized API configuration
-  static String get _effectiveBaseUrl => ApiConstants.baseUrl;
+  static String get _effectiveBaseUrl => ApiConfig.baseUrl;
 
   // Public getter for building image URLs
-  static String get effectiveBaseUrl => ApiConstants.baseUrl;
+  static String get effectiveBaseUrl => ApiConfig.baseUrl;
+
+  /// Response wrapper to include status code
+  static Map<String, dynamic>? _handleResponse(http.Response resp) {
+    if (resp.statusCode == 200) {
+      return json.decode(resp.body) as Map<String, dynamic>;
+    } else if (resp.statusCode == 404) {
+      return {}; // Empty profile
+    }
+    // Return status code in error case
+    return {'_statusCode': resp.statusCode};
+  }
 
   /// GET /api/userprofile/{userId}
   /// Returns profile data: phone, age, gender, education, field, skills, areas, image
@@ -33,15 +44,7 @@ class ProfileService {
       debugPrint('ProfileService.getProfile <- status ${resp.statusCode}');
       debugPrint('ProfileService.getProfile body: ${resp.body}');
 
-      if (resp.statusCode == 200) {
-        final data = json.decode(resp.body) as Map<String, dynamic>;
-        return data;
-      } else if (resp.statusCode == 404) {
-        // Profile doesn't exist yet - return empty
-        return {};
-      }
-
-      return null;
+      return _handleResponse(resp);
     } on SocketException catch (e) {
       debugPrint('ProfileService.getProfile - Connection error: ${e.message}');
       return null;

@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'dart:async';
 import 'dart:io';
 import 'dart:math';
-import '../../core/constants/api_constants.dart';
+import '../../core/config/api_config.dart';
 import '../../services/local/storage_service.dart';
 import '../../models/quiz_models.dart';
 
@@ -18,8 +18,8 @@ class CareerQuizService {
   static Future<QuizResponse> generateQuiz() async {
     try {
       print('🔵 Starting quiz generation...');
-      print('🔵 Base URL: ${ApiConstants.baseUrl}');
-      print('🔵 Full URL: ${ApiConstants.baseUrl}$_quizPath/generate');
+      print('🔵 Base URL: ${ApiConfig.baseUrl}');
+      print('🔵 Full URL: ${ApiConfig.baseUrl}$_quizPath/generate');
 
       final token = await _getToken();
       if (token == null || token.isEmpty) {
@@ -35,7 +35,7 @@ class CareerQuizService {
       print('🔵 Making HTTP POST request...');
       final response = await http
           .post(
-            Uri.parse('${ApiConstants.baseUrl}$_quizPath/generate'),
+            Uri.parse('${ApiConfig.baseUrl}$_quizPath/generate'),
             headers: {
               'Content-Type': 'application/json',
               'Authorization': 'Bearer $token',
@@ -109,7 +109,7 @@ class CareerQuizService {
     } on SocketException catch (e) {
       print('💥 SocketException: $e');
       print('💥 This usually means:');
-      print('   - Cannot reach server at ${ApiConstants.baseUrl}');
+      print('   - Cannot reach server at ${ApiConfig.baseUrl}');
       print('   - Check if backend is running');
       print('   - Check if IP address is correct');
       print('   - Check if device/emulator is on same network');
@@ -170,7 +170,7 @@ class CareerQuizService {
 
       final response = await http
           .post(
-            Uri.parse('${ApiConstants.baseUrl}$_quizPath/submit'),
+            Uri.parse('${ApiConfig.baseUrl}$_quizPath/submit'),
             headers: {
               'Content-Type': 'application/json',
               'Authorization': 'Bearer $token',

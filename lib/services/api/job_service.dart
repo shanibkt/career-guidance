@@ -1,12 +1,15 @@
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import '../../models/job.dart';
 import '../../models/job_filter.dart';
 import '../../services/local/storage_service.dart';
+import '../../core/config/api_config.dart';
 
 class JobService {
-  static const String baseUrl = 'http://localhost:5000/api';
-  static const String jsearchApiKey = 'c7176de2d9mshfd38021e3ce01a3p14702ejsn8dff493f4d86';
+  static String get baseUrl => ApiConfig.baseUrl;
+  static const String jsearchApiKey =
+      'c7176de2d9mshfd38021e3ce01a3p14702ejsn8dff493f4d86';
   static const String jsearchHost = 'jsearch.p.rapidapi.com';
 
   // Search jobs with filters
@@ -15,14 +18,16 @@ class JobService {
       final token = await StorageService.loadAuthToken();
 
       // Call backend to search jobs
-      final response = await http.post(
-        Uri.parse('$baseUrl/jobs/search'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-        body: json.encode(filter.toJson()),
-      ).timeout(const Duration(seconds: 30));
+      final response = await http
+          .post(
+            Uri.parse('$baseUrl/api/jobs/search'),
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer $token',
+            },
+            body: json.encode(filter.toJson()),
+          )
+          .timeout(const Duration(seconds: 60));
 
       if (response.statusCode == 200) {
         return JobSearchResponse.fromJson(
@@ -46,25 +51,50 @@ class JobService {
     try {
       final token = await StorageService.loadAuthToken();
 
-      final response = await http.post(
-        Uri.parse('$baseUrl/jobs/personalized'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-        body: json.encode({
-          'careerTitle': careerTitle,
-          'skills': skills ?? [],
-        }),
-      ).timeout(const Duration(seconds: 30));
+      final response = await http
+          .post(
+            Uri.parse('$baseUrl/api/jobs/personalized'),
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer $token',
+            },
+            body: json.encode({
+              'careerTitle': careerTitle,
+              'skills': skills ?? [],
+            }),
+          )
+          .timeout(const Duration(seconds: 60));
 
       if (response.statusCode == 200) {
+        debugPrint(
+          '✅ Personalized jobs response: ${response.body.substring(0, response.body.length > 500 ? 500 : response.body.length)}',
+        );
         final data = json.decode(response.body) as Map<String, dynamic>;
+        debugPrint('📦 Response data keys: ${data.keys.toList()}');
         final jobsList = data['jobs'] as List<dynamic>? ?? [];
-        return jobsList
-            .map((e) => Job.fromJson(e as Map<String, dynamic>))
-            .toList();
+        debugPrint(
+          '📋 Parsed ${jobsList.length} personalized jobs from response',
+        );
+        if (jobsList.isNotEmpty) {
+          debugPrint('First job raw data: ${jobsList[0]}');
+        }
+        final jobs = jobsList.map((e) {
+          try {
+            final job = Job.fromJson(e as Map<String, dynamic>);
+            debugPrint('✅ Parsed job: ${job.title} at ${job.company}');
+            return job;
+          } catch (parseError) {
+            debugPrint('❌ Error parsing job: $parseError');
+            debugPrint('Job data: $e');
+            rethrow;
+          }
+        }).toList();
+        debugPrint('✅ Converted to ${jobs.length} Job objects');
+        return jobs;
       } else {
+        debugPrint(
+          '❌ Personalized jobs error: ${response.statusCode} - ${response.body}',
+        );
         throw Exception('Failed to get personalized jobs');
       }
     } catch (e) {
@@ -77,19 +107,19 @@ class JobService {
     try {
       final token = await StorageService.loadAuthToken();
 
-      final response = await http.post(
-        Uri.parse('$baseUrl/jobs/$jobId/save'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-        body: json.encode({'save': save}),
-      ).timeout(const Duration(seconds: 15));
+      final response = await http
+          .post(
+            Uri.parse('$baseUrl/api/jobs/$jobId/save'),
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer $token',
+            },
+            body: json.encode({'save': save}),
+          )
+          .timeout(const Duration(seconds: 15));
 
       if (response.statusCode == 200) {
-        return Job.fromJson(
-          json.decode(response.body) as Map<String, dynamic>,
-        );
+        return Job.fromJson(json.decode(response.body) as Map<String, dynamic>);
       } else {
         throw Exception('Failed to save job');
       }
@@ -103,18 +133,18 @@ class JobService {
     try {
       final token = await StorageService.loadAuthToken();
 
-      final response = await http.post(
-        Uri.parse('$baseUrl/jobs/$jobId/apply'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-      ).timeout(const Duration(seconds: 15));
+      final response = await http
+          .post(
+            Uri.parse('$baseUrl/api/jobs/$jobId/apply'),
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer $token',
+            },
+          )
+          .timeout(const Duration(seconds: 15));
 
       if (response.statusCode == 200) {
-        return Job.fromJson(
-          json.decode(response.body) as Map<String, dynamic>,
-        );
+        return Job.fromJson(json.decode(response.body) as Map<String, dynamic>);
       } else {
         throw Exception('Failed to apply for job');
       }
@@ -128,13 +158,15 @@ class JobService {
     try {
       final token = await StorageService.loadAuthToken();
 
-      final response = await http.get(
-        Uri.parse('$baseUrl/jobs/saved'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-      ).timeout(const Duration(seconds: 15));
+      final response = await http
+          .get(
+            Uri.parse('$baseUrl/api/jobs/saved'),
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer $token',
+            },
+          )
+          .timeout(const Duration(seconds: 15));
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body) as Map<String, dynamic>;
@@ -155,18 +187,18 @@ class JobService {
     try {
       final token = await StorageService.loadAuthToken();
 
-      final response = await http.get(
-        Uri.parse('$baseUrl/jobs/$jobId'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-      ).timeout(const Duration(seconds: 15));
+      final response = await http
+          .get(
+            Uri.parse('$baseUrl/api/jobs/$jobId'),
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer $token',
+            },
+          )
+          .timeout(const Duration(seconds: 15));
 
       if (response.statusCode == 200) {
-        return Job.fromJson(
-          json.decode(response.body) as Map<String, dynamic>,
-        );
+        return Job.fromJson(json.decode(response.body) as Map<String, dynamic>);
       } else if (response.statusCode == 404) {
         return null;
       } else {
@@ -180,10 +212,7 @@ class JobService {
   // Legacy method for backwards compatibility
   static Future<List<Job>> getJobsForCareer(String? careerTitle) async {
     try {
-      final filter = JobSearchFilter(
-        query: careerTitle,
-        pageSize: 20,
-      );
+      final filter = JobSearchFilter(query: careerTitle, pageSize: 20);
       final response = await searchJobs(filter);
       return response.jobs;
     } catch (e) {

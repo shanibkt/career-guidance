@@ -6,7 +6,6 @@ import '../../../providers/job_provider.dart';
 import '../../../services/local/storage_service.dart';
 import '../widgets/job_filter_widget.dart';
 
-
 class JobFinderPage extends StatefulWidget {
   const JobFinderPage({super.key});
 
@@ -31,11 +30,18 @@ class _JobFinderPageState extends State<JobFinderPage>
   }
 
   Future<void> _loadUserData() async {
+    debugPrint('🔍 JobFinder: Loading user data...');
     final selected = await StorageService.loadSelectedCareer();
-    final careerTitle = selected?['careerTitle'] as String?;
+    debugPrint('🔍 JobFinder: Selected career data: $selected');
+    final careerTitle = selected?['careerName'] as String?;
+    debugPrint('🔍 JobFinder: Career title: $careerTitle');
     // Load user skills from profile if available
     final profile = await StorageService.loadProfile();
-    final skills = profile?['skills'] as List<String>? ?? [];
+    final skillsData = profile?['skills'];
+    final skills = skillsData != null
+        ? (skillsData is List ? skillsData.cast<String>() : <String>[])
+        : <String>[];
+    debugPrint('🔍 JobFinder: User skills: $skills');
 
     setState(() {
       _careerTitle = careerTitle;
@@ -44,7 +50,10 @@ class _JobFinderPageState extends State<JobFinderPage>
 
     // Load personalized jobs
     if (_careerTitle != null) {
+      debugPrint('🔍 JobFinder: Loading personalized jobs for: $_careerTitle');
       jobProvider.getPersonalizedJobs(_careerTitle, _userSkills);
+    } else {
+      debugPrint('⚠️ JobFinder: No career title, skipping personalized jobs');
     }
   }
 
@@ -110,11 +119,7 @@ class _JobFinderPageState extends State<JobFinderPage>
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(
-                  Icons.search_off,
-                  size: 64,
-                  color: Colors.grey[400],
-                ),
+                Icon(Icons.search_off, size: 64, color: Colors.grey[400]),
                 const SizedBox(height: 16),
                 Text(
                   'No personalized jobs found',
@@ -131,10 +136,8 @@ class _JobFinderPageState extends State<JobFinderPage>
         }
 
         return RefreshIndicator(
-          onRefresh: () => jobProvider.getPersonalizedJobs(
-            _careerTitle,
-            _userSkills,
-          ),
+          onRefresh: () =>
+              jobProvider.getPersonalizedJobs(_careerTitle, _userSkills),
           child: ListView.builder(
             padding: const EdgeInsets.all(16),
             itemCount: provider.personalizedJobs.length,
@@ -202,16 +205,18 @@ class _JobFinderPageState extends State<JobFinderPage>
             ),
             // Results
             if (provider.isLoading)
-              const Expanded(
-                child: Center(child: CircularProgressIndicator()),
-              )
+              const Expanded(child: Center(child: CircularProgressIndicator()))
             else if (provider.errorMessage != null)
               Expanded(
                 child: Center(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Icon(Icons.error_outline, size: 64, color: Colors.red),
+                      const Icon(
+                        Icons.error_outline,
+                        size: 64,
+                        color: Colors.red,
+                      ),
                       const SizedBox(height: 16),
                       Text(
                         'Error: ${provider.errorMessage}',
@@ -235,11 +240,7 @@ class _JobFinderPageState extends State<JobFinderPage>
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(
-                        Icons.search_off,
-                        size: 64,
-                        color: Colors.grey[400],
-                      ),
+                      Icon(Icons.search_off, size: 64, color: Colors.grey[400]),
                       const SizedBox(height: 16),
                       const Text('No jobs found. Try a different search.'),
                     ],
@@ -269,10 +270,7 @@ class _JobFinderPageState extends State<JobFinderPage>
                                 ),
                         );
                       }
-                      return _buildJobCard(
-                        provider.jobs[index],
-                        provider,
-                      );
+                      return _buildJobCard(provider.jobs[index], provider);
                     },
                   ),
                 ),
@@ -286,46 +284,43 @@ class _JobFinderPageState extends State<JobFinderPage>
   Widget _buildSavedTab() {
     return Consumer<JobProvider>(
       builder: (context, provider, _) {
-        return FutureBuilder<void>(
-          future: provider.loadSavedJobs(),
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(child: CircularProgressIndicator());
-            }
+        // Load saved jobs on first build using post-frame callback
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!provider.isLoading &&
+              provider.savedJobs.isEmpty &&
+              provider.errorMessage == null) {
+            provider.loadSavedJobs();
+          }
+        });
 
-            if (provider.savedJobs.isEmpty) {
-              return Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      Icons.bookmark_outline,
-                      size: 64,
-                      color: Colors.grey[400],
-                    ),
-                    const SizedBox(height: 16),
-                    const Text('No saved jobs yet'),
-                    const SizedBox(height: 8),
-                    const Text('Save jobs to view them here'),
-                  ],
-                ),
-              );
-            }
+        if (provider.isLoading) {
+          return const Center(child: CircularProgressIndicator());
+        }
 
-            return RefreshIndicator(
-              onRefresh: () => provider.loadSavedJobs(),
-              child: ListView.builder(
-                padding: const EdgeInsets.all(16),
-                itemCount: provider.savedJobs.length,
-                itemBuilder: (context, index) {
-                  return _buildJobCard(
-                    provider.savedJobs[index],
-                    provider,
-                  );
-                },
-              ),
-            );
-          },
+        if (provider.savedJobs.isEmpty) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.bookmark_outline, size: 64, color: Colors.grey[400]),
+                const SizedBox(height: 16),
+                const Text('No saved jobs yet'),
+                const SizedBox(height: 8),
+                const Text('Save jobs to view them here'),
+              ],
+            ),
+          );
+        }
+
+        return RefreshIndicator(
+          onRefresh: () => provider.loadSavedJobs(),
+          child: ListView.builder(
+            padding: const EdgeInsets.all(16),
+            itemCount: provider.savedJobs.length,
+            itemBuilder: (context, index) {
+              return _buildJobCard(provider.savedJobs[index], provider);
+            },
+          ),
         );
       },
     );
@@ -391,7 +386,11 @@ class _JobFinderPageState extends State<JobFinderPage>
                 padding: const EdgeInsets.only(bottom: 12),
                 child: Row(
                   children: [
-                    const Icon(Icons.trending_up, size: 16, color: Colors.green),
+                    const Icon(
+                      Icons.trending_up,
+                      size: 16,
+                      color: Colors.green,
+                    ),
                     const SizedBox(width: 8),
                     Text(
                       '${job.matchPercentage!.toStringAsFixed(0)}% Match',

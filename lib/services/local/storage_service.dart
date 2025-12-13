@@ -124,19 +124,31 @@ class StorageService {
   ) async {
     final prefs = await SharedPreferences.getInstance();
     final careerData = {
-      'careerTitle': careerTitle,
+      'careerName':
+          careerTitle, // Changed from careerTitle to careerName for consistency with backend
       'requiredSkills': requiredSkills,
       'selectedAt': DateTime.now().toIso8601String(),
     };
     await prefs.setString('selected_career', json.encode(careerData));
   }
 
-  /// Load selected career
+  /// Load selected career with backward compatibility
   static Future<Map<String, dynamic>?> loadSelectedCareer() async {
     final prefs = await SharedPreferences.getInstance();
     final data = prefs.getString('selected_career');
     if (data == null) return null;
-    return json.decode(data) as Map<String, dynamic>;
+
+    final careerData = json.decode(data) as Map<String, dynamic>;
+
+    // Migrate old data: if 'careerTitle' exists but 'careerName' doesn't, copy it over
+    if (careerData.containsKey('careerTitle') &&
+        !careerData.containsKey('careerName')) {
+      careerData['careerName'] = careerData['careerTitle'];
+      // Save the migrated data
+      await prefs.setString('selected_career', json.encode(careerData));
+    }
+
+    return careerData;
   }
 
   /// Clear selected career

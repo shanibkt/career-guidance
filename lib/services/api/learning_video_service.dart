@@ -1,13 +1,13 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import '../../core/constants/api_constants.dart';
+import '../../core/config/api_config.dart';
 import '../../models/course_module.dart';
 
 class LearningVideoService {
   /// Fetch all learning videos
   static Future<List<CourseModule>> getAllVideos() async {
     try {
-      final url = Uri.parse('${ApiConstants.baseUrl}/api/learningvideos');
+      final url = Uri.parse('${ApiConfig.baseUrl}/api/learningvideos');
       print('📡 Fetching all learning videos from: $url');
 
       final response = await http
@@ -59,7 +59,7 @@ class LearningVideoService {
       final encodedSkills = Uri.encodeComponent(skillsJson);
 
       final url = Uri.parse(
-        '${ApiConstants.baseUrl}/api/learningvideos/skills?skills=$encodedSkills',
+        '${ApiConfig.baseUrl}/api/learningvideos/skills?skills=$encodedSkills',
       );
 
       print('📡 Fetching videos for skills: $skills');
@@ -103,7 +103,7 @@ class LearningVideoService {
   static Future<CourseModule?> getVideoBySkill(String skillName) async {
     try {
       final url = Uri.parse(
-        '${ApiConstants.baseUrl}/api/learningvideos/${Uri.encodeComponent(skillName)}',
+        '${ApiConfig.baseUrl}/api/learningvideos/${Uri.encodeComponent(skillName)}',
       );
 
       print('📡 Fetching video for skill: $skillName');

@@ -1,7 +1,7 @@
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'dart:async';
-import '../../core/constants/api_constants.dart';
+import '../../core/config/api_config.dart';
 import '../../models/career.dart';
 
 class CareerService {
@@ -11,11 +11,11 @@ class CareerService {
   static Future<List<Career>> getAllCareers() async {
     try {
       print('🔵 Fetching all careers...');
-      print('🔵 URL: ${ApiConstants.baseUrl}$_careersPath');
+      print('🔵 URL: ${ApiConfig.baseUrl}$_careersPath');
 
       final response = await http
           .get(
-            Uri.parse('${ApiConstants.baseUrl}$_careersPath'),
+            Uri.parse('${ApiConfig.baseUrl}$_careersPath'),
             headers: {'Content-Type': 'application/json'},
           )
           .timeout(
