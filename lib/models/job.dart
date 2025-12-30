@@ -15,7 +15,6 @@ class Job {
   final String? jobRole;
   final String? employmentType;
   final bool isSaved;
-  final bool isApplied;
   final double? matchPercentage; // For personalized recommendations
 
   Job({
@@ -35,55 +34,52 @@ class Job {
     this.jobRole,
     this.employmentType,
     this.isSaved = false,
-    this.isApplied = false,
     this.matchPercentage,
   });
 
   factory Job.fromJson(Map<String, dynamic> json) => Job(
-        id: json['id'] as String? ?? '',
-        title: json['title'] as String? ?? '',
-        company: json['company'] as String? ?? '',
-        location: json['location'] as String? ?? '',
-        url: json['url'] as String?,
-        description: json['description'] as String?,
-        jobType: json['jobType'] as String?,
-        salaryMin: json['salaryMin'] as String?,
-        salaryMax: json['salaryMax'] as String?,
-        salaryCurrency: json['salaryCurrency'] as String?,
-        experienceLevel: json['experienceLevel'] as String?,
-        requiredSkills:
-            (json['requiredSkills'] as List<dynamic>?)
-                ?.map((e) => e as String)
-                .toList() ??
-            [],
-        postedDate: json['postedDate'] as String?,
-        jobRole: json['jobRole'] as String?,
-        employmentType: json['employmentType'] as String?,
-        isSaved: json['isSaved'] as bool? ?? false,
-        isApplied: json['isApplied'] as bool? ?? false,
-        matchPercentage: (json['matchPercentage'] as num?)?.toDouble(),
-      );
+    id: json['id'] as String? ?? '',
+    title: json['title'] as String? ?? '',
+    company: json['company'] as String? ?? '',
+    location: json['location'] as String? ?? '',
+    url: json['url'] as String?,
+    description: json['description'] as String?,
+    jobType: json['jobType'] as String?,
+    salaryMin: json['salaryMin'] as String?,
+    salaryMax: json['salaryMax'] as String?,
+    salaryCurrency: json['salaryCurrency'] as String?,
+    experienceLevel: json['experienceLevel'] as String?,
+    requiredSkills:
+        (json['requiredSkills'] as List<dynamic>?)
+            ?.map((e) => e as String)
+            .toList() ??
+        [],
+    postedDate: json['postedDate'] as String?,
+    jobRole: json['jobRole'] as String?,
+    employmentType: json['employmentType'] as String?,
+    isSaved: json['isSaved'] as bool? ?? false,
+    matchPercentage: (json['matchPercentage'] as num?)?.toDouble(),
+  );
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'title': title,
-        'company': company,
-        'location': location,
-        'url': url,
-        'description': description,
-        'jobType': jobType,
-        'salaryMin': salaryMin,
-        'salaryMax': salaryMax,
-        'salaryCurrency': salaryCurrency,
-        'experienceLevel': experienceLevel,
-        'requiredSkills': requiredSkills,
-        'postedDate': postedDate,
-        'jobRole': jobRole,
-        'employmentType': employmentType,
-        'isSaved': isSaved,
-        'isApplied': isApplied,
-        'matchPercentage': matchPercentage,
-      };
+    'id': id,
+    'title': title,
+    'company': company,
+    'location': location,
+    'url': url,
+    'description': description,
+    'jobType': jobType,
+    'salaryMin': salaryMin,
+    'salaryMax': salaryMax,
+    'salaryCurrency': salaryCurrency,
+    'experienceLevel': experienceLevel,
+    'requiredSkills': requiredSkills,
+    'postedDate': postedDate,
+    'jobRole': jobRole,
+    'employmentType': employmentType,
+    'isSaved': isSaved,
+    'matchPercentage': matchPercentage,
+  };
 
   Job copyWith({
     String? id,
@@ -102,7 +98,6 @@ class Job {
     String? jobRole,
     String? employmentType,
     bool? isSaved,
-    bool? isApplied,
     double? matchPercentage,
   }) {
     return Job(
@@ -122,7 +117,6 @@ class Job {
       jobRole: jobRole ?? this.jobRole,
       employmentType: employmentType ?? this.employmentType,
       isSaved: isSaved ?? this.isSaved,
-      isApplied: isApplied ?? this.isApplied,
       matchPercentage: matchPercentage ?? this.matchPercentage,
     );
   }

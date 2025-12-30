@@ -1,10 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../models/job.dart';
 import '../../../models/job_filter.dart';
 import '../../../providers/job_provider.dart';
 import '../../../services/local/storage_service.dart';
 import '../widgets/job_filter_widget.dart';
+
+// Constants
+const String kNoUrlMessage = 'Job URL is not available';
+const String kInvalidUrlMessage = 'Invalid job URL';
+const String kCannotOpenUrlMessage = 'Cannot open job URL';
+const String kOpeningJobMessage = 'Opening job posting...';
 
 class JobFinderPage extends StatefulWidget {
   const JobFinderPage({super.key});
@@ -421,36 +428,16 @@ class _JobFinderPageState extends State<JobFinderPage>
                   ),
                 ),
               ),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: () {
-                      if (job.url != null) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('Opening: ${job.url}'),
-                            action: SnackBarAction(
-                              label: 'Copy URL',
-                              onPressed: () {
-                                // Copy to clipboard logic
-                              },
-                            ),
-                          ),
-                        );
-                      }
-                    },
-                    child: const Text('View Job'),
-                  ),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () => _openJobUrl(context, job),
+                icon: const Icon(Icons.open_in_new, size: 18),
+                label: const Text('View Job'),
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 12),
                 ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: () => provider.applyForJob(job),
-                    child: const Text('Apply'),
-                  ),
-                ),
-              ],
+              ),
             ),
           ],
         ),
@@ -476,5 +463,72 @@ class _JobFinderPageState extends State<JobFinderPage>
         ),
       ),
     );
+  }
+
+  /// Opens a job URL in external browser with proper error handling
+  Future<void> _openJobUrl(BuildContext context, Job job) async {
+    // Validate job URL exists
+    if (job.url == null || job.url!.isEmpty) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(kNoUrlMessage),
+            backgroundColor: Colors.orange,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+      return;
+    }
+
+    try {
+      // Parse and validate URL
+      final uri = Uri.tryParse(job.url!);
+      if (uri == null || (!uri.hasScheme || !uri.hasAuthority)) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(kInvalidUrlMessage),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+        return;
+      }
+
+      // Show loading feedback
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(kOpeningJobMessage),
+            duration: Duration(milliseconds: 800),
+          ),
+        );
+      }
+
+      // Launch URL in external browser
+      final canLaunch = await canLaunchUrl(uri);
+      if (canLaunch) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      } else {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(kCannotOpenUrlMessage),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error opening URL: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 }

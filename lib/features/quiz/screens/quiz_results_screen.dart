@@ -1,11 +1,19 @@
 import 'package:flutter/material.dart';
 import '../../../models/quiz_models.dart';
-import '../../career/screens/career_suggestions_screen.dart';
+import 'ai_quiz_screen.dart';
+import 'quiz_review_screen.dart';
 
 class QuizResultsScreen extends StatelessWidget {
   final QuizResult result;
+  final List<QuizQuestion>? questions;
+  final Map<int, String>? userAnswers;
 
-  const QuizResultsScreen({super.key, required this.result});
+  const QuizResultsScreen({
+    super.key,
+    required this.result,
+    this.questions,
+    this.userAnswers,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -69,55 +77,62 @@ class QuizResultsScreen extends StatelessWidget {
             ),
             const SizedBox(height: 24),
 
-            // Career Matches
-            const Text(
-              'Career Matches',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 12),
-            if (result.careerMatches.isEmpty)
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: ElevatedButton.icon(
-                    onPressed: () {
-                      // Collect all skills from skill breakdown
-                      final userSkills = result.skillBreakdown
-                          .where((skill) => skill.percentage >= 50)
-                          .map((skill) => skill.skill)
-                          .toList();
-
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) =>
-                              CareerSuggestionsPage(userSkills: userSkills),
+            // Action Buttons
+            if (questions != null && userAnswers != null)
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => QuizReviewScreen(
+                          questions: questions!,
+                          userAnswers: userAnswers!,
                         ),
-                      );
-                    },
-                    icon: const Icon(Icons.explore),
-                    label: const Text('Explore Career Suggestions'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.blueAccent,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 24,
-                        vertical: 12,
                       ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.checklist),
+                  label: const Text('Show Answers'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.purple,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
                     ),
                   ),
                 ),
-              )
-            else
-              ...result.careerMatches.map(
-                (career) => _buildCareerMatchCard(career),
               ),
-            const SizedBox(height: 24),
-
-            // Action Buttons
+            if (questions != null && userAnswers != null)
+              const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  // Navigate back to home and then to quiz screen for a new quiz
+                  Navigator.of(context).popUntil((route) => route.isFirst);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const AiQuizScreen(),
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.refresh),
+                label: const Text('Keep Practicing'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.green,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
@@ -160,9 +175,9 @@ class QuizResultsScreen extends StatelessWidget {
       color = Colors.orange;
       icon = Icons.sentiment_satisfied;
     } else {
-      label = 'Keep Practicing';
+      label = 'Needs Improvement';
       color = Colors.red;
-      icon = Icons.school;
+      icon = Icons.trending_up;
     }
 
     return Container(
@@ -250,146 +265,6 @@ class QuizResultsScreen extends StatelessWidget {
                 fontWeight: FontWeight.bold,
               ),
             ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildCareerMatchCard(CareerMatch career) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 16),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      elevation: 3,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Expanded(
-                  child: Text(
-                    career.careerName,
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 6,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.green.shade100,
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                      color: Colors.green.shade700,
-                      width: 1.5,
-                    ),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        Icons.check_circle,
-                        size: 16,
-                        color: Colors.green.shade700,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        '${career.matchPercentage.toStringAsFixed(1)}%',
-                        style: TextStyle(
-                          color: Colors.green.shade700,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 14,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            if (career.salaryRange != null) ...[
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  Icon(
-                    Icons.attach_money,
-                    size: 18,
-                    color: Colors.grey.shade600,
-                  ),
-                  const SizedBox(width: 4),
-                  Text(
-                    career.salaryRange!,
-                    style: TextStyle(color: Colors.grey.shade700, fontSize: 14),
-                  ),
-                ],
-              ),
-            ],
-            const SizedBox(height: 12),
-            if (career.matchingSkills.isNotEmpty) ...[
-              const Text(
-                'Matching Skills:',
-                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
-              ),
-              const SizedBox(height: 6),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: career.matchingSkills
-                    .map(
-                      (skill) => Chip(
-                        label: Text(
-                          skill,
-                          style: const TextStyle(fontSize: 12),
-                        ),
-                        backgroundColor: Colors.green.shade100,
-                        avatar: Icon(
-                          Icons.check,
-                          size: 16,
-                          color: Colors.green.shade700,
-                        ),
-                        padding: EdgeInsets.zero,
-                        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      ),
-                    )
-                    .toList(),
-              ),
-            ],
-            if (career.missingSkills.isNotEmpty) ...[
-              const SizedBox(height: 12),
-              const Text(
-                'Skills to Develop:',
-                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
-              ),
-              const SizedBox(height: 6),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: career.missingSkills
-                    .map(
-                      (skill) => Chip(
-                        label: Text(
-                          skill,
-                          style: const TextStyle(fontSize: 12),
-                        ),
-                        backgroundColor: Colors.orange.shade100,
-                        avatar: Icon(
-                          Icons.school,
-                          size: 16,
-                          color: Colors.orange.shade700,
-                        ),
-                        padding: EdgeInsets.zero,
-                        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      ),
-                    )
-                    .toList(),
-              ),
-            ],
           ],
         ),
       ),

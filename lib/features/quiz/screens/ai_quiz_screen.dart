@@ -201,10 +201,16 @@ class _AiQuizScreenState extends State<AiQuizScreen> {
       );
 
       print('🔵 Navigating to results screen...');
-      // Navigate to results screen
+      // Navigate to results screen with questions and answers for review
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (_) => QuizResultsScreen(result: result)),
+        MaterialPageRoute(
+          builder: (_) => QuizResultsScreen(
+            result: result,
+            questions: _quiz!.questions,
+            userAnswers: _answers,
+          ),
+        ),
       );
       print('✅ Navigation initiated');
     } catch (e, stackTrace) {

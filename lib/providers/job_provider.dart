@@ -111,35 +111,46 @@ class JobProvider extends ChangeNotifier {
   // Save/unsave job
   Future<void> toggleSaveJob(Job job) async {
     try {
-      final updatedJob = await JobService.toggleSaveJob(job.id, !job.isSaved);
+      final newSavedStatus = !job.isSaved;
+      final response = await JobService.toggleSaveJob(
+        job.id,
+        newSavedStatus,
+        job,
+      );
 
+      // Use the response job which has the updated saved status
+      final updatedJob = response;
+
+      // Update search results list
       final index = _jobs.indexWhere((j) => j.id == job.id);
       if (index != -1) {
         _jobs[index] = updatedJob;
       }
 
-      // Update saved jobs list
-      if (updatedJob.isSaved) {
-        _savedJobs.add(updatedJob);
-      } else {
-        _savedJobs.removeWhere((j) => j.id == job.id);
+      // Update personalized jobs list
+      final personalizedIndex = _personalizedJobs.indexWhere(
+        (j) => j.id == job.id,
+      );
+      if (personalizedIndex != -1) {
+        _personalizedJobs[personalizedIndex] = updatedJob;
       }
 
-      notifyListeners();
-    } catch (e) {
-      _errorMessage = e.toString();
-      notifyListeners();
-    }
-  }
-
-  // Apply for a job
-  Future<void> applyForJob(Job job) async {
-    try {
-      final updatedJob = await JobService.applyForJob(job.id);
-
-      final index = _jobs.indexWhere((j) => j.id == job.id);
-      if (index != -1 && updatedJob != null) {
-        _jobs[index] = updatedJob;
+      // Update saved jobs list
+      if (updatedJob.isSaved) {
+        // Add to saved jobs if not already there
+        if (!_savedJobs.any((j) => j.id == updatedJob.id)) {
+          _savedJobs.add(updatedJob);
+        } else {
+          // Update existing saved job
+          final savedIndex = _savedJobs.indexWhere(
+            (j) => j.id == updatedJob.id,
+          );
+          if (savedIndex != -1) {
+            _savedJobs[savedIndex] = updatedJob;
+          }
+        }
+      } else {
+        _savedJobs.removeWhere((j) => j.id == job.id);
       }
 
       notifyListeners();

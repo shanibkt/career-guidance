@@ -103,7 +103,7 @@ class JobService {
   }
 
   // Toggle save job
-  static Future<Job> toggleSaveJob(String jobId, bool save) async {
+  static Future<Job> toggleSaveJob(String jobId, bool save, Job job) async {
     try {
       final token = await StorageService.loadAuthToken();
 
@@ -114,7 +114,7 @@ class JobService {
               'Content-Type': 'application/json',
               'Authorization': 'Bearer $token',
             },
-            body: json.encode({'save': save}),
+            body: json.encode({'save': save, 'job': job.toJson()}),
           )
           .timeout(const Duration(seconds: 15));
 
@@ -125,31 +125,6 @@ class JobService {
       }
     } catch (e) {
       throw Exception('Error saving job: $e');
-    }
-  }
-
-  // Apply for a job
-  static Future<Job?> applyForJob(String jobId) async {
-    try {
-      final token = await StorageService.loadAuthToken();
-
-      final response = await http
-          .post(
-            Uri.parse('$baseUrl/api/jobs/$jobId/apply'),
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': 'Bearer $token',
-            },
-          )
-          .timeout(const Duration(seconds: 15));
-
-      if (response.statusCode == 200) {
-        return Job.fromJson(json.decode(response.body) as Map<String, dynamic>);
-      } else {
-        throw Exception('Failed to apply for job');
-      }
-    } catch (e) {
-      throw Exception('Error applying for job: $e');
     }
   }
 

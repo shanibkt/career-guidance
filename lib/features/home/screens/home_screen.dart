@@ -196,118 +196,89 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header with profile
+          // Modern Header with profile
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
-                'AI Career Pathfinder',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black87,
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Hello, $displayName 👋',
+                      style: const TextStyle(
+                        fontSize: 28,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
+                        height: 1.2,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    const Text(
+                      'Let\'s shape your future today',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w400,
+                        color: Colors.black54,
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              // Profile avatar: switch to profile tab (keeps bottom nav)
+              const SizedBox(width: 12),
+              // Modern Profile avatar with gradient border
               InkWell(
                 onTap: () {
                   setState(() {
                     _currentIndex = 2; // Switch to profile tab
                   });
                 },
-                borderRadius: BorderRadius.circular(22),
-                child: CircleAvatar(
-                  radius: 22,
-                  backgroundColor: Colors.white,
-                  child: _profileImagePath == null
-                      ? Icon(Icons.person, color: Colors.grey[600], size: 28)
-                      : ClipOval(
-                          child: _profileImagePath!.startsWith('http')
-                              ? CachedNetworkImage(
-                                  imageUrl: _profileImagePath!,
-                                  width: 44,
-                                  height: 44,
-                                  fit: BoxFit.cover,
-                                  placeholder: (ctx, url) =>
-                                      const CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                      ),
-                                  errorWidget: (ctx, url, err) => Icon(
-                                    Icons.person,
-                                    color: Colors.grey[600],
-                                    size: 28,
+                borderRadius: BorderRadius.circular(25),
+                child: Container(
+                  padding: const EdgeInsets.all(3),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF4A7DFF), Color(0xFF5B8EFF)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(25),
+                  ),
+                  child: CircleAvatar(
+                    radius: 24,
+                    backgroundColor: Colors.white,
+                    child: _profileImagePath == null
+                        ? Icon(Icons.person, color: Colors.grey[600], size: 26)
+                        : ClipOval(
+                            child: _profileImagePath!.startsWith('http')
+                                ? CachedNetworkImage(
+                                    imageUrl: _profileImagePath!,
+                                    width: 48,
+                                    height: 48,
+                                    fit: BoxFit.cover,
+                                    placeholder: (ctx, url) =>
+                                        const CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                        ),
+                                    errorWidget: (ctx, url, err) => Icon(
+                                      Icons.person,
+                                      color: Colors.grey[600],
+                                      size: 26,
+                                    ),
+                                  )
+                                : Image.file(
+                                    File(_profileImagePath!),
+                                    width: 48,
+                                    height: 48,
+                                    fit: BoxFit.cover,
                                   ),
-                                )
-                              : Image.file(
-                                  File(_profileImagePath!),
-                                  width: 44,
-                                  height: 44,
-                                  fit: BoxFit.cover,
-                                ),
-                        ),
+                          ),
+                  ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 20),
-
-          // Welcome section with name
-          Text(
-            'Hi, $displayName',
-            style: const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w500,
-              color: Colors.black87,
-            ),
-          ),
-          const SizedBox(height: 16),
-
-          // Progress card with blue background
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFF4A7DFF), Color(0xFF5B8EFF)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              borderRadius: BorderRadius.circular(20),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.blue.withOpacity(0.3),
-                  blurRadius: 10,
-                  offset: const Offset(0, 5),
-                ),
-              ],
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'learning progress 0%',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.white,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                // Progress bar
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(10),
-                  child: LinearProgressIndicator(
-                    value: 0.0,
-                    backgroundColor: Colors.white.withOpacity(0.3),
-                    valueColor: const AlwaysStoppedAnimation<Color>(
-                      Colors.white,
-                    ),
-                    minHeight: 10,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 30),
 
           // AI Career Quiz section
           _buildCard(
@@ -480,87 +451,100 @@ class _HomeScreenState extends State<HomeScreen> {
     required VoidCallback onPressed,
   }) {
     return Container(
-      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
+            color: buttonColor.withOpacity(0.1),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
+            spreadRadius: 0,
           ),
         ],
       ),
-      child: Row(
-        children: [
-          // Icon
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: Colors.grey[100],
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(icon, color: Colors.black87, size: 24),
-          ),
-          const SizedBox(width: 12),
-          // Title and Subtitle
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onPressed,
+          borderRadius: BorderRadius.circular(20),
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Row(
               children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.black87,
+                // Modern Icon with gradient
+                Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        buttonColor.withOpacity(0.1),
+                        buttonColor.withOpacity(0.05),
+                      ],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Icon(icon, color: buttonColor, size: 28),
+                ),
+                const SizedBox(width: 16),
+                // Title and Subtitle
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        title,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black87,
+                          letterSpacing: -0.3,
+                        ),
+                      ),
+                      if (subtitle != null) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          subtitle,
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: Colors.grey[600],
+                            fontWeight: FontWeight.w400,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ],
                   ),
                 ),
-                if (subtitle != null) ...[
-                  const SizedBox(height: 2),
-                  Text(
-                    subtitle,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey[600],
-                      fontStyle: FontStyle.italic,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                const SizedBox(width: 12),
+                // Modern Arrow Button
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: buttonColor,
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: buttonColor.withOpacity(0.3),
+                        blurRadius: 8,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
                   ),
-                ],
+                  child: const Icon(
+                    Icons.arrow_forward_rounded,
+                    color: Colors.white,
+                    size: 20,
+                  ),
+                ),
               ],
             ),
           ),
-          // Button
-          Material(
-            color: Colors.transparent,
-            child: InkWell(
-              onTap: onPressed,
-              borderRadius: BorderRadius.circular(20),
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 8,
-                ),
-                decoration: BoxDecoration(
-                  color: buttonColor,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  buttonText,
-                  style: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.white,
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -579,34 +563,25 @@ class _HomeScreenState extends State<HomeScreen> {
           _refreshSelectedCareer();
         }
       },
-      borderRadius: BorderRadius.circular(20),
+      borderRadius: BorderRadius.circular(16),
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 600),
+        duration: const Duration(milliseconds: 300),
         curve: Curves.easeInOutCubic,
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
         decoration: BoxDecoration(
-          color: isActive ? Colors.black87 : Colors.transparent,
-          borderRadius: BorderRadius.circular(20),
+          gradient: isActive
+              ? const LinearGradient(
+                  colors: [Color(0xFF4A7DFF), Color(0xFF5B8EFF)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                )
+              : null,
+          borderRadius: BorderRadius.circular(16),
         ),
-        child: AnimatedScale(
-          scale: isActive ? 1.15 : 1.0,
-          duration: const Duration(milliseconds: 600),
-          curve: Curves.easeInOutCubic,
-          child: AnimatedSwitcher(
-            duration: const Duration(milliseconds: 600),
-            transitionBuilder: (child, animation) {
-              return FadeTransition(
-                opacity: animation,
-                child: ScaleTransition(scale: animation, child: child),
-              );
-            },
-            child: Icon(
-              icon,
-              key: ValueKey<bool>(isActive),
-              color: isActive ? Colors.white : Colors.black54,
-              size: 24,
-            ),
-          ),
+        child: Icon(
+          icon,
+          color: isActive ? Colors.white : Colors.black38,
+          size: 26,
         ),
       ),
     );
