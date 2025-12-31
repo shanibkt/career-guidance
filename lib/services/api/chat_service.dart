@@ -45,7 +45,7 @@ class ChatService {
             },
             body: jsonEncode(requestBody),
           )
-          .timeout(const Duration(seconds: 60));
+          .timeout(const Duration(seconds: 90));
 
       print('✅ Chat response status: ${response.statusCode}');
       print('📄 Response body: ${response.body}');
@@ -101,8 +101,10 @@ class ChatService {
         );
       }
     } on TimeoutException catch (e) {
-      print('❌ Timeout after 60 seconds: $e');
-      throw Exception('Request timeout. The AI is taking too long to respond.');
+      print('❌ Timeout after 90 seconds: $e');
+      throw Exception(
+        'Request timeout. Please check your internet connection and try again.',
+      );
     } on http.ClientException catch (e) {
       print('❌ Network error: $e');
       throw Exception('Network error. Please check your internet connection.');

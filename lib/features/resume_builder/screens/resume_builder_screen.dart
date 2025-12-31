@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'dart:math' show min;
+import 'package:printing/printing.dart';
+import 'package:pdf/widgets.dart' as pw;
 import '../../../providers/profile_provider.dart';
 import '../../../services/local/storage_service.dart';
 import '../../../services/api/chat_service.dart';
 import '../../../services/resume_service.dart';
+import '../../../services/pdf_resume_service.dart';
 
 class ResumeBuilderScreen extends StatefulWidget {
   const ResumeBuilderScreen({super.key});
@@ -278,40 +281,165 @@ class _ResumeBuilderScreenState extends State<ResumeBuilderScreen>
     setState(() => educationList.removeAt(index));
   }
 
-  void showPreview() {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (context) => ResumePreviewScreen(
-          name: _nameController.text,
-          title: _titleController.text,
-          email: _emailController.text,
-          phone: _phoneController.text,
-          location: _locationController.text,
-          linkedin: _linkedinController.text,
-          summary: _summaryController.text,
-          skills: skills,
-          experiences: experiences,
-          education: educationList,
+  void showPreview() async {
+    try {
+      // Generate PDF
+      final pdf = await PdfResumeService.generateResumePdf(
+        name: _nameController.text,
+        title: _titleController.text,
+        email: _emailController.text,
+        phone: _phoneController.text,
+        location: _locationController.text,
+        linkedin: _linkedinController.text,
+        summary: _summaryController.text,
+        skills: skills,
+        experiences: experiences,
+        education: educationList,
+      );
+
+      // Show PDF preview with download and print options
+      await Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (context) => Scaffold(
+            appBar: AppBar(
+              title: const Text('Resume Preview'),
+              actions: [
+                IconButton(
+                  icon: const Icon(Icons.share),
+                  tooltip: 'Share PDF',
+                  onPressed: () async {
+                    await PdfResumeService.sharePdf(
+                      pdf,
+                      'Resume_${_nameController.text.replaceAll(' ', '_')}.pdf',
+                    );
+                  },
+                ),
+                IconButton(
+                  icon: const Icon(Icons.download),
+                  tooltip: 'Download PDF',
+                  onPressed: () async {
+                    try {
+                      final file = await PdfResumeService.savePdfToDevice(
+                        pdf,
+                        'Resume_${_nameController.text.replaceAll(' ', '_')}.pdf',
+                      );
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('PDF saved to ${file.path}'),
+                            backgroundColor: Colors.green,
+                            action: SnackBarAction(
+                              label: 'OK',
+                              textColor: Colors.white,
+                              onPressed: () {},
+                            ),
+                          ),
+                        );
+                      }
+                    } catch (e) {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Error saving PDF: $e'),
+                            backgroundColor: Colors.red,
+                          ),
+                        );
+                      }
+                    }
+                  },
+                ),
+                IconButton(
+                  icon: const Icon(Icons.print),
+                  tooltip: 'Print',
+                  onPressed: () async {
+                    await PdfResumeService.printPdf(pdf);
+                  },
+                ),
+              ],
+            ),
+            body: PdfPreview(
+              build: (format) => pdf.save(),
+              canChangePageFormat: false,
+              canChangeOrientation: false,
+              canDebug: false,
+              allowPrinting: true,
+              allowSharing: true,
+            ),
+          ),
         ),
-      ),
-    );
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error generating PDF: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
-  void exportPdf() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Row(
-          children: [
-            Icon(Icons.info_outline, color: Colors.white),
-            SizedBox(width: 12),
-            Text('PDF export feature coming soon!'),
-          ],
-        ),
-        backgroundColor: Colors.blue.shade600,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      ),
-    );
+  void exportPdf() async {
+    try {
+      // Generate PDF
+      final pdf = await PdfResumeService.generateResumePdf(
+        name: _nameController.text,
+        title: _titleController.text,
+        email: _emailController.text,
+        phone: _phoneController.text,
+        location: _locationController.text,
+        linkedin: _linkedinController.text,
+        summary: _summaryController.text,
+        skills: skills,
+        experiences: experiences,
+        education: educationList,
+      );
+
+      // Share PDF (opens share dialog or saves to device)
+      await PdfResumeService.sharePdf(
+        pdf,
+        'Resume_${_nameController.text.replaceAll(' ', '_')}.pdf',
+      );
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Row(
+              children: [
+                Icon(Icons.check_circle, color: Colors.white),
+                SizedBox(width: 12),
+                Text('Resume exported successfully!'),
+              ],
+            ),
+            backgroundColor: Colors.green.shade600,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.error, color: Colors.white),
+                const SizedBox(width: 12),
+                Expanded(child: Text('Error exporting PDF: $e')),
+              ],
+            ),
+            backgroundColor: Colors.red.shade600,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+          ),
+        );
+      }
+    }
   }
 
   void aiImproveSummary() async {

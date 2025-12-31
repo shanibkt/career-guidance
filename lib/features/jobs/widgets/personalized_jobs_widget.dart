@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../models/job.dart';
 import '../../../providers/job_provider.dart';
 import '../../../services/local/storage_service.dart';
@@ -38,7 +39,75 @@ class _PersonalizedJobsWidgetState extends State<PersonalizedJobsWidget> {
 
     if (mounted && _careerTitle != null) {
       // ignore: use_build_context_synchronously
-      context.read<JobProvider>().getPersonalizedJobs(_careerTitle, _userSkills);
+      context.read<JobProvider>().getPersonalizedJobs(
+        _careerTitle,
+        _userSkills,
+      );
+    }
+  }
+
+  Future<void> _openJobUrl(BuildContext context, Job job) async {
+    // Validate URL
+    if (job.url == null || job.url!.isEmpty) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Job URL is not available'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
+      return;
+    }
+
+    try {
+      // Parse and validate URL
+      final uri = Uri.tryParse(job.url!);
+      if (uri == null || !uri.hasScheme || !uri.hasAuthority) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Invalid job URL'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+        return;
+      }
+
+      // Show loading message
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Opening job posting...'),
+            duration: Duration(seconds: 1),
+          ),
+        );
+      }
+
+      // Launch URL in external browser
+      final launched = await launchUrl(
+        uri,
+        mode: LaunchMode.externalApplication,
+      );
+
+      if (!launched && context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Cannot open job URL'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error opening job: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
@@ -66,17 +135,13 @@ class _PersonalizedJobsWidgetState extends State<PersonalizedJobsWidget> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              Icons.search_off,
-              size: 80,
-              color: Colors.grey[300],
-            ),
+            Icon(Icons.search_off, size: 80, color: Colors.grey[300]),
             const SizedBox(height: 24),
             Text(
               'No Personalized Jobs Found',
-              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 12),
@@ -84,9 +149,9 @@ class _PersonalizedJobsWidgetState extends State<PersonalizedJobsWidget> {
               _careerTitle == null
                   ? 'Complete your profile to see personalized recommendations'
                   : 'Add more skills to get better job matches',
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Colors.grey[600],
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodyMedium?.copyWith(color: Colors.grey[600]),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 24),
@@ -108,10 +173,12 @@ class _PersonalizedJobsWidgetState extends State<PersonalizedJobsWidget> {
     );
   }
 
-  Widget _buildPersonalizedJobsList(BuildContext context, JobProvider provider) {
+  Widget _buildPersonalizedJobsList(
+    BuildContext context,
+    JobProvider provider,
+  ) {
     return RefreshIndicator(
-      onRefresh: () =>
-          provider.getPersonalizedJobs(_careerTitle, _userSkills),
+      onRefresh: () => provider.getPersonalizedJobs(_careerTitle, _userSkills),
       child: ListView(
         padding: const EdgeInsets.all(16),
         children: [
@@ -121,9 +188,9 @@ class _PersonalizedJobsWidgetState extends State<PersonalizedJobsWidget> {
             children: [
               Text(
                 'Personalized for you',
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
+                style: Theme.of(
+                  context,
+                ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 8),
               if (_careerTitle != null)
@@ -178,10 +245,7 @@ class _PersonalizedJobsWidgetState extends State<PersonalizedJobsWidget> {
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [
-              Colors.white,
-              Colors.blue[50]!,
-            ],
+            colors: [Colors.white, Colors.blue[50]!],
           ),
         ),
         child: Padding(
@@ -194,7 +258,10 @@ class _PersonalizedJobsWidgetState extends State<PersonalizedJobsWidget> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
+                    ),
                     decoration: BoxDecoration(
                       color: Colors.blue,
                       borderRadius: BorderRadius.circular(20),
@@ -209,7 +276,10 @@ class _PersonalizedJobsWidgetState extends State<PersonalizedJobsWidget> {
                   ),
                   if (job.matchPercentage != null)
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
                       decoration: BoxDecoration(
                         color: Colors.green[50],
                         border: Border.all(color: Colors.green),
@@ -230,9 +300,9 @@ class _PersonalizedJobsWidgetState extends State<PersonalizedJobsWidget> {
               // Job Title
               Text(
                 job.title,
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
+                style: Theme.of(
+                  context,
+                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
               ),
@@ -309,7 +379,8 @@ class _PersonalizedJobsWidgetState extends State<PersonalizedJobsWidget> {
                       Expanded(
                         child: Text(
                           '${job.salaryCurrency} ${job.salaryMin} - ${job.salaryMax} per year',
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          style: Theme.of(context).textTheme.bodyMedium
+                              ?.copyWith(
                                 color: Colors.green[700],
                                 fontWeight: FontWeight.w600,
                               ),
@@ -328,8 +399,8 @@ class _PersonalizedJobsWidgetState extends State<PersonalizedJobsWidget> {
                     Text(
                       'Required Skills',
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            fontWeight: FontWeight.w600,
-                          ),
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                     const SizedBox(height: 8),
                     Wrap(
@@ -345,8 +416,9 @@ class _PersonalizedJobsWidgetState extends State<PersonalizedJobsWidget> {
                           labelStyle: TextStyle(
                             color: hasSkill ? Colors.green : Colors.grey,
                           ),
-                          labelPadding:
-                              const EdgeInsets.symmetric(horizontal: 6),
+                          labelPadding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                          ),
                         );
                       }).toList(),
                     ),
@@ -369,9 +441,7 @@ class _PersonalizedJobsWidgetState extends State<PersonalizedJobsWidget> {
                     child: OutlinedButton.icon(
                       onPressed: () => provider.toggleSaveJob(job),
                       icon: Icon(
-                        job.isSaved
-                            ? Icons.bookmark
-                            : Icons.bookmark_outline,
+                        job.isSaved ? Icons.bookmark : Icons.bookmark_outline,
                       ),
                       label: Text(job.isSaved ? 'Saved' : 'Save'),
                     ),
@@ -379,17 +449,9 @@ class _PersonalizedJobsWidgetState extends State<PersonalizedJobsWidget> {
                   const SizedBox(width: 12),
                   Expanded(
                     child: ElevatedButton.icon(
-                      onPressed: () {
-                        provider.applyForJob(job);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Application submitted!'),
-                            duration: Duration(seconds: 2),
-                          ),
-                        );
-                      },
-                      icon: const Icon(Icons.check_circle),
-                      label: const Text('Apply'),
+                      onPressed: () => _openJobUrl(context, job),
+                      icon: const Icon(Icons.open_in_new),
+                      label: const Text('View Job'),
                     ),
                   ),
                 ],
