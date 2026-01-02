@@ -9,10 +9,19 @@ import '../../core/config/api_config.dart';
 class AuthResult {
   final bool success;
   final String? token;
+  final String? refreshToken;
+  final DateTime? tokenExpiration;
   final User? user;
   final String? message;
 
-  AuthResult({required this.success, this.token, this.user, this.message});
+  AuthResult({
+    required this.success,
+    this.token,
+    this.refreshToken,
+    this.tokenExpiration,
+    this.user,
+    this.message,
+  });
 }
 
 class AuthService {
@@ -63,6 +72,18 @@ class AuthService {
         token ??= body['accessToken'] as String?;
         token ??= body['access_token'] as String?;
 
+        // Extract refresh token
+        String? refreshToken = body['refreshToken'] as String?;
+        refreshToken ??= body['refresh_token'] as String?;
+
+        // Extract token expiration
+        DateTime? tokenExpiration;
+        if (body['tokenExpiration'] != null) {
+          tokenExpiration = DateTime.parse(body['tokenExpiration'].toString());
+        } else if (body['token_expiration'] != null) {
+          tokenExpiration = DateTime.parse(body['token_expiration'].toString());
+        }
+
         Map<String, dynamic>? userJson;
         if (body['user'] is Map<String, dynamic>) {
           userJson = body['user'] as Map<String, dynamic>;
@@ -78,7 +99,13 @@ class AuthService {
 
         // If either token or user is present, return success with what we have
         if (token != null || user != null) {
-          return AuthResult(success: true, token: token, user: user);
+          return AuthResult(
+            success: true,
+            token: token,
+            refreshToken: refreshToken,
+            tokenExpiration: tokenExpiration,
+            user: user,
+          );
         }
 
         return AuthResult(
@@ -207,6 +234,18 @@ class AuthService {
         token ??= body['accessToken'] as String?;
         token ??= body['access_token'] as String?;
 
+        // Extract refresh token
+        String? refreshToken = body['refreshToken'] as String?;
+        refreshToken ??= body['refresh_token'] as String?;
+
+        // Extract token expiration
+        DateTime? tokenExpiration;
+        if (body['tokenExpiration'] != null) {
+          tokenExpiration = DateTime.parse(body['tokenExpiration'].toString());
+        } else if (body['token_expiration'] != null) {
+          tokenExpiration = DateTime.parse(body['token_expiration'].toString());
+        }
+
         // user may be under 'user', 'data', or 'result'
         Map<String, dynamic>? userJson;
         if (body['user'] is Map<String, dynamic>) {
@@ -223,7 +262,13 @@ class AuthService {
 
         // If we have at least token or user, return them.
         if (token != null || user != null) {
-          return AuthResult(success: true, token: token, user: user);
+          return AuthResult(
+            success: true,
+            token: token,
+            refreshToken: refreshToken,
+            tokenExpiration: tokenExpiration,
+            user: user,
+          );
         }
 
         // No token/user provided but HTTP status is success: treat as signup success
@@ -295,6 +340,90 @@ class AuthService {
 
       // Handle error
       String message = 'Failed to reset password (${resp.statusCode})';
+      try {
+        final Map<String, dynamic> body = json.decode(resp.body);
+        if (body.containsKey('message')) {
+          message = body['message'].toString();
+        } else if (body.containsKey('error')) {
+          message = body['error'].toString();
+        }
+      } catch (_) {
+        message = resp.body.toString();
+      }
+
+      return AuthResult(success: false, message: message);
+    } on SocketException catch (e) {
+      return AuthResult(
+        success: false,
+        message:
+            'Connection refused — is the API running at $_effectiveBaseUrl? (${e.message})',
+      );
+    } catch (e) {
+      return AuthResult(success: false, message: e.toString());
+    }
+  }
+
+  /// POST /api/auth/refresh
+  /// Refresh the access token using refresh token
+  static Future<AuthResult> refreshAccessToken(String refreshToken) async {
+    final uri = Uri.parse('$_effectiveBaseUrl/api/auth/refresh');
+
+    try {
+      debugPrint('AuthService.refreshAccessToken -> POST $uri');
+
+      final resp = await http.post(
+        uri,
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({'refreshToken': refreshToken}),
+      );
+
+      debugPrint('AuthService.refreshAccessToken <- status ${resp.statusCode}');
+
+      if (resp.statusCode == 200) {
+        final Map<String, dynamic> body = json.decode(resp.body);
+
+        // Extract new token
+        String? token = body['token'] as String?;
+        token ??= body['accessToken'] as String?;
+        token ??= body['access_token'] as String?;
+
+        // Extract new refresh token
+        String? newRefreshToken = body['refreshToken'] as String?;
+        newRefreshToken ??= body['refresh_token'] as String?;
+
+        // Extract token expiration
+        DateTime? tokenExpiration;
+        if (body['tokenExpiration'] != null) {
+          tokenExpiration = DateTime.parse(body['tokenExpiration'].toString());
+        } else if (body['token_expiration'] != null) {
+          tokenExpiration = DateTime.parse(body['token_expiration'].toString());
+        }
+
+        // Extract user if provided
+        Map<String, dynamic>? userJson;
+        if (body['user'] is Map<String, dynamic>) {
+          userJson = body['user'] as Map<String, dynamic>;
+        }
+        final user = userJson != null ? User.fromJson(userJson) : null;
+
+        if (token != null) {
+          return AuthResult(
+            success: true,
+            token: token,
+            refreshToken: newRefreshToken,
+            tokenExpiration: tokenExpiration,
+            user: user,
+          );
+        }
+
+        return AuthResult(
+          success: false,
+          message: 'No token in refresh response',
+        );
+      }
+
+      // Token expired or invalid
+      String message = 'Token refresh failed (${resp.statusCode})';
       try {
         final Map<String, dynamic> body = json.decode(resp.body);
         if (body.containsKey('message')) {

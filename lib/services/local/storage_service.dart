@@ -6,6 +6,8 @@ class StorageService {
   static const _profileKey = 'profile_data';
   static const _profileImageKey = 'profile_image';
   static const _authTokenKey = 'auth_token';
+  static const _refreshTokenKey = 'refresh_token';
+  static const _tokenExpirationKey = 'token_expiration';
   static const _userKey = 'user_data';
   static const _chatHistoryKey = 'chat_history';
   static const _chatMessagesPrefix = 'chat_messages_';
@@ -51,6 +53,45 @@ class StorageService {
     return prefs.getString(_authTokenKey);
   }
 
+  static Future<void> saveRefreshToken(String refreshToken) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_refreshTokenKey, refreshToken);
+  }
+
+  static Future<String?> loadRefreshToken() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_refreshTokenKey);
+  }
+
+  static Future<void> saveTokenExpiration(DateTime expiration) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_tokenExpirationKey, expiration.toIso8601String());
+  }
+
+  static Future<DateTime?> loadTokenExpiration() async {
+    final prefs = await SharedPreferences.getInstance();
+    final expirationStr = prefs.getString(_tokenExpirationKey);
+    if (expirationStr == null) return null;
+    try {
+      return DateTime.parse(expirationStr);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Check if token is expired or about to expire (within 5 minutes)
+  static Future<bool> isTokenExpired() async {
+    final expiration = await loadTokenExpiration();
+
+    // If no expiration date, assume token is still valid
+    // This handles backward compatibility with old tokens
+    if (expiration == null) return false;
+
+    // Consider token expired if it expires within 5 minutes
+    final expiryThreshold = DateTime.now().add(const Duration(minutes: 5));
+    return expiration.isBefore(expiryThreshold);
+  }
+
   /// Save authenticated user JSON map
   static Future<void> saveUser(Map<String, dynamic> user) async {
     final prefs = await SharedPreferences.getInstance();
@@ -74,6 +115,8 @@ class StorageService {
     await prefs.remove(_profileKey);
     await prefs.remove(_profileImageKey);
     await prefs.remove(_authTokenKey);
+    await prefs.remove(_refreshTokenKey);
+    await prefs.remove(_tokenExpirationKey);
     await prefs.remove(_userKey);
   }
 
@@ -81,6 +124,8 @@ class StorageService {
   static Future<void> clearAuthToken() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_authTokenKey);
+    await prefs.remove(_refreshTokenKey);
+    await prefs.remove(_tokenExpirationKey);
   }
 
   /// Clear user data only

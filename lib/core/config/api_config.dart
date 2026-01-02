@@ -18,7 +18,7 @@ class ApiConfig {
   /// 3. Firewall allows port 5001
 
   // TEMPORARY: Using local backend
-  static const String baseUrl = 'http://192.168.1.62:5001'; // Android Emulator
+  static const String baseUrl = 'http://192.168.1.64:5001'; // Android Emulator
   // static const String baseUrl = 'http://192.168.1.59:5001'; // Physical device - change to your PC's IP
   // static const String baseUrl = 'https://career-guaidance-ahemf5fqfgayg0fw.canadacentral-01.azurewebsites.net'; // Azure production
 
