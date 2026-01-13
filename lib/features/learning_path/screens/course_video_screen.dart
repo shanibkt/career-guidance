@@ -32,81 +32,186 @@ class _CourseVideoPageState extends State<CourseVideoPage> {
   @override
   void initState() {
     super.initState();
+    print('🎬 CourseVideoPage initState called');
+    print('🎬 Video ID: ${widget.course.youtubeVideoId}');
+    print('🎬 Course Title: ${widget.course.title}');
+
+    // Initialize player immediately to prevent null controller
     _initializePlayerWithProgress();
   }
 
   Future<void> _initializePlayerWithProgress() async {
-    // Load progress from database FIRST
-    final progressList = await CareerProgressService.getCourseProgress(
-      careerName: widget.careerTitle,
-    );
+    try {
+      print('🎬 Starting player initialization...');
 
-    // Find this course's progress
-    final courseProgress = progressList.firstWhere(
-      (p) => p['courseId'] == widget.course.id,
-      orElse: () => <String, dynamic>{},
-    );
+      // Validate video ID
+      if (widget.course.youtubeVideoId.isEmpty) {
+        throw Exception('Video ID is empty');
+      }
 
-    if (courseProgress.isNotEmpty) {
-      final watchedPercentage = courseProgress['watchedPercentage'];
-      final watchTimeSeconds = courseProgress['watchTimeSeconds'];
-
-      widget.course.watchedPercentage = (watchedPercentage is num)
-          ? watchedPercentage.toDouble()
-          : 0.0;
-      widget.course.isCompleted = courseProgress['isCompleted'] == true;
-
-      _currentProgress = widget.course.watchedPercentage;
-      _savedWatchTimeSeconds = (watchTimeSeconds is num)
-          ? watchTimeSeconds.toInt()
-          : 0;
-
-      print(
-        '📊 Loaded progress for ${widget.course.skillName}: ${_currentProgress.toStringAsFixed(1)}% at ${_savedWatchTimeSeconds}s',
+      // First check local storage (fast, no network)
+      final localProgress = await CourseProgressService.loadProgress(
+        widget.course.id,
       );
-    }
 
-    // NOW initialize player with the loaded progress
-    _initializePlayer();
-  }
+      if (localProgress != null) {
+        _currentProgress = (localProgress['watchedPercentage'] as num)
+            .toDouble();
+        final isCompleted = localProgress['isCompleted'] as bool;
 
-  void _initializePlayer() {
-    _controller = YoutubePlayerController(
-      initialVideoId: widget.course.youtubeVideoId,
-      flags: YoutubePlayerFlags(
-        autoPlay: false,
-        mute: false,
-        enableCaption: true,
-        controlsVisibleAtStart: true,
-        // Seek to saved position using actual watch time seconds
-        startAt: (_savedWatchTimeSeconds > 0 && _currentProgress < 95)
-            ? _savedWatchTimeSeconds
-            : 0,
-      ),
-    )..addListener(_onPlayerStateChange); // Start tracking when player is ready
-    Future.delayed(const Duration(milliseconds: 500), () {
+        // Get the actual saved watch time from local storage
+        _savedWatchTimeSeconds =
+            (localProgress['watchTimeSeconds'] as num?)?.toInt() ?? 0;
+
+        if (!isCompleted &&
+            _currentProgress < 95 &&
+            _savedWatchTimeSeconds == 0) {
+          // Fallback: Estimate watch time from percentage if not saved
+          _savedWatchTimeSeconds =
+              ((widget.course.durationMinutes * 60) * (_currentProgress / 100))
+                  .round();
+        }
+
+        widget.course.watchedPercentage = _currentProgress;
+        widget.course.isCompleted = isCompleted;
+
+        print(
+          '📊 Loaded progress: ${_currentProgress.toStringAsFixed(1)}% at ${_savedWatchTimeSeconds}s',
+        );
+      } else {
+        print('📊 No saved progress found, starting from beginning');
+      }
+
+      // Initialize player with saved position
+      print(
+        '🎬 Creating YouTube controller (startAt: $_savedWatchTimeSeconds seconds)',
+      );
+
+      _controller = YoutubePlayerController(
+        initialVideoId: widget.course.youtubeVideoId,
+        flags: YoutubePlayerFlags(
+          autoPlay: false,
+          mute: false,
+          enableCaption: true,
+          controlsVisibleAtStart: true,
+          startAt: (_savedWatchTimeSeconds > 0 && _currentProgress < 95)
+              ? _savedWatchTimeSeconds
+              : 0,
+        ),
+      )..addListener(_onPlayerStateChange);
+
+      print('✅ YouTube controller created successfully');
+
+      // Update UI
       if (mounted) {
         setState(() {
           _isPlayerReady = true;
-          _isLoading = false; // Hide loading spinner
+          _isLoading = false;
+        });
+        print('✅ UI updated - video should be visible now');
+      }
+
+      // Then load accurate progress from database in background
+      _updateProgressFromDatabase();
+    } catch (e, stackTrace) {
+      print('❌ FATAL: Error initializing player: $e');
+      print('❌ Stack trace: $stackTrace');
+
+      // Create controller anyway with default values to prevent null error
+      if (_controller == null) {
+        print('🔧 Creating fallback controller...');
+        try {
+          _controller = YoutubePlayerController(
+            initialVideoId: widget.course.youtubeVideoId,
+            flags: const YoutubePlayerFlags(autoPlay: false, mute: false),
+          )..addListener(_onPlayerStateChange);
+          print('✅ Fallback controller created');
+        } catch (fallbackError) {
+          print('❌ Fallback controller also failed: $fallbackError');
+        }
+      }
+
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _isPlayerReady = true;
         });
       }
-    });
+    }
+  }
+
+  Future<void> _updateProgressFromDatabase() async {
+    try {
+      // Load accurate progress from database in background with timeout
+      final progressList =
+          await CareerProgressService.getCourseProgress(
+            careerName: widget.careerTitle,
+          ).timeout(
+            const Duration(seconds: 10),
+            onTimeout: () {
+              print('⏱️ Database progress load timed out, using cached data');
+              return [];
+            },
+          );
+
+      // Find this course's progress
+      final courseProgress = progressList.firstWhere(
+        (p) => p['courseId'] == widget.course.id,
+        orElse: () => <String, dynamic>{},
+      );
+
+      if (courseProgress.isNotEmpty && mounted) {
+        final watchedPercentage = courseProgress['watchedPercentage'];
+        final watchTimeSeconds = courseProgress['watchTimeSeconds'];
+        final totalDurationSeconds = courseProgress['totalDurationSeconds'];
+
+        widget.course.watchedPercentage = (watchedPercentage is num)
+            ? watchedPercentage.toDouble()
+            : 0.0;
+        widget.course.isCompleted = courseProgress['isCompleted'] == true;
+
+        _currentProgress = widget.course.watchedPercentage;
+
+        // Update with accurate watch time from database
+        final accurateWatchTime = (watchTimeSeconds is num)
+            ? watchTimeSeconds.toInt()
+            : 0;
+
+        // Update real duration if available
+        if (totalDurationSeconds is num && totalDurationSeconds > 0) {
+          _realDurationSeconds = totalDurationSeconds.toInt();
+        }
+
+        print(
+          '📊 Updated from database: ${_currentProgress.toStringAsFixed(1)}% at ${accurateWatchTime}s',
+        );
+
+        setState(() {});
+      }
+    } catch (e) {
+      print('⚠️ Error loading progress from database: $e');
+      // Continue anyway - video started from local storage position
+    }
   }
 
   void _onPlayerStateChange() {
     if (_controller == null || !mounted) return;
 
-    // Start tracking when video is playing
-    if (_controller!.value.isPlaying && _progressTimer == null) {
-      _startProgressTracking();
-    } else if (!_controller!.value.isPlaying && _progressTimer != null) {
-      _stopProgressTracking();
+    try {
+      // Start tracking when video is playing
+      if (_controller!.value.isPlaying && _progressTimer == null) {
+        _startProgressTracking();
+      } else if (!_controller!.value.isPlaying && _progressTimer != null) {
+        _stopProgressTracking();
+      }
+    } catch (e) {
+      print('⚠️ Error in player state change: $e');
     }
   }
 
   void _startProgressTracking() {
-    _progressTimer = Timer.periodic(const Duration(seconds: 3), (timer) {
+    // Check progress every 5 seconds instead of 3 to reduce CPU usage
+    _progressTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
       if (_controller == null || !mounted) {
         timer.cancel();
         return;
@@ -134,11 +239,11 @@ class _CourseVideoPageState extends State<CourseVideoPage> {
           _realDurationSeconds = totalSeconds;
         }
 
-        // Only save to database every 10 seconds to reduce API calls
-        if ((currentSeconds - _lastSavedPosition).abs() >= 10 || isCompleted) {
+        // Only save to database every 15 seconds to reduce API calls and improve performance
+        if ((currentSeconds - _lastSavedPosition).abs() >= 15 || isCompleted) {
           _lastSavedPosition = currentSeconds;
 
-          // Save to database
+          // Save to database asynchronously (don't wait for response)
           CareerProgressService.saveCourseProgress(
             careerName: widget.careerTitle,
             courseId: widget.course.id,
@@ -149,13 +254,18 @@ class _CourseVideoPageState extends State<CourseVideoPage> {
             watchTimeSeconds: currentSeconds,
             totalDurationSeconds: totalSeconds,
             isCompleted: isCompleted,
-          );
+          ).catchError((e) {
+            // Log error but don't interrupt playback
+            print('⚠️ Progress save error (will retry): $e');
+            return false;
+          });
 
-          // Also save to local storage as backup
+          // Also save to local storage as backup (fast, no network)
           CourseProgressService.saveProgress(
             widget.course.id,
             percentage,
             isCompleted,
+            watchTimeSeconds: currentSeconds,
           );
         }
 
@@ -206,6 +316,7 @@ class _CourseVideoPageState extends State<CourseVideoPage> {
           widget.course.id,
           percentage,
           percentage >= 95.0,
+          watchTimeSeconds: position.inSeconds,
         );
       }
     }
@@ -216,6 +327,7 @@ class _CourseVideoPageState extends State<CourseVideoPage> {
 
     showDialog(
       context: context,
+      barrierDismissible: true,
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: Row(
@@ -226,19 +338,51 @@ class _CourseVideoPageState extends State<CourseVideoPage> {
           ],
         ),
         content: Text(
-          'Congratulations! You\'ve completed "${widget.course.skillName}" course.',
+          'Congratulations! You\'ve completed "${widget.course.skillName}" course.\n\nYou can now take a quiz to test your knowledge!',
           style: const TextStyle(fontSize: 16),
         ),
         actions: [
           TextButton(
             onPressed: () {
-              Navigator.pop(context);
+              Navigator.pop(context); // Close dialog
               Navigator.pop(context); // Go back to learning path
             },
-            child: const Text('Back to Learning Path'),
+            child: const Text(
+              'Back to Learning Path',
+              style: TextStyle(color: Colors.grey),
+            ),
+          ),
+          ElevatedButton.icon(
+            onPressed: () {
+              Navigator.pop(context); // Close dialog
+              _navigateToSkillQuiz();
+            },
+            icon: const Icon(Icons.quiz),
+            label: const Text('Take Quiz'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.blue,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
           ),
         ],
       ),
+    );
+  }
+
+  void _navigateToSkillQuiz() {
+    // Navigate to quiz screen with the skill context
+    Navigator.pushNamed(
+      context,
+      '/skill_quiz',
+      arguments: {
+        'skillName': widget.course.skillName,
+        'careerTitle': widget.careerTitle,
+        'videoTitle': widget.course.title,
+        'youtubeVideoId': widget.course.youtubeVideoId,
+      },
     );
   }
 
@@ -258,15 +402,47 @@ class _CourseVideoPageState extends State<CourseVideoPage> {
 
   @override
   void dispose() {
+    print('🧹 Disposing CourseVideoPage resources...');
     _stopProgressTracking();
+    _progressTimer?.cancel();
+    _progressTimer = null;
+    _controller?.removeListener(_onPlayerStateChange);
     _controller?.dispose();
+    _controller = null;
+    print('✅ Resources disposed successfully');
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_controller == null) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    // Show loading while controller is being created
+    if (_controller == null || _isLoading) {
+      return Scaffold(
+        backgroundColor: const Color(0xFFF5F7FA),
+        appBar: AppBar(
+          title: const Text('Loading Video...'),
+          backgroundColor: Colors.white,
+          foregroundColor: Colors.black87,
+        ),
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const CircularProgressIndicator(),
+              const SizedBox(height: 16),
+              Text(
+                'Loading ${widget.course.title}...',
+                style: const TextStyle(fontSize: 16),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Video ID: ${widget.course.youtubeVideoId}',
+                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+              ),
+            ],
+          ),
+        ),
+      );
     }
 
     return YoutubePlayerBuilder(
@@ -522,6 +698,37 @@ class _CourseVideoPageState extends State<CourseVideoPage> {
                             ],
                           ),
                           const SizedBox(height: 16),
+
+                          // Quiz Button - appears at 90% progress
+                          if (_currentProgress >= 90 &&
+                              !widget.course.isCompleted)
+                            Container(
+                              width: double.infinity,
+                              margin: const EdgeInsets.only(bottom: 16),
+                              child: ElevatedButton.icon(
+                                onPressed: _navigateToSkillQuiz,
+                                icon: const Icon(Icons.quiz, size: 24),
+                                label: const Text(
+                                  'Test Your Knowledge',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.blue,
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 16,
+                                    horizontal: 24,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  elevation: 3,
+                                ),
+                              ),
+                            ),
 
                           // Completion Badge
                           if (widget.course.isCompleted)

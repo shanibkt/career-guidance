@@ -42,11 +42,11 @@ class CareerQuizService {
             },
           )
           .timeout(
-            const Duration(seconds: 60),
+            const Duration(seconds: 45),
             onTimeout: () {
-              print('⏱️ Request timed out after 60 seconds!');
+              print('⏱️ Request timed out after 45 seconds!');
               throw TimeoutException(
-                'Quiz generation timed out. The AI is taking longer than expected. Please try again.',
+                'Quiz generation timed out. Please check your internet connection and try again.',
               );
             },
           );
@@ -123,6 +123,83 @@ class CareerQuizService {
       print('💥 Type: ${e.runtimeType}');
       print('💥 Stack trace:');
       print(stackTrace);
+      rethrow;
+    }
+  }
+
+  /// Generate quiz based on skill name (fallback when no transcript)
+  static Future<QuizResponse> generateQuizFromSkillName({
+    required String skillName,
+    required String videoTitle,
+  }) async {
+    try {
+      print('🔵 Starting skill-based quiz generation...');
+      print('🔵 Skill: $skillName');
+      print('🔵 Video: $videoTitle');
+      print('🔵 Full URL: ${ApiConfig.baseUrl}$_quizPath/generate-from-skill');
+
+      final token = await _getToken();
+      if (token == null || token.isEmpty) {
+        print('❌ No token found!');
+        throw Exception('Not logged in. Please login first.');
+      }
+
+      print('🔵 Making HTTP POST request...');
+      final response = await http
+          .post(
+            Uri.parse('${ApiConfig.baseUrl}$_quizPath/generate-from-skill'),
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer $token',
+            },
+            body: jsonEncode({
+              'skill_name': skillName,
+              'video_title': videoTitle,
+            }),
+          )
+          .timeout(
+            const Duration(seconds: 45),
+            onTimeout: () {
+              print('⏱️ Request timed out after 45 seconds!');
+              throw TimeoutException(
+                'Quiz generation timed out. Please check your internet connection and try again.',
+              );
+            },
+          );
+
+      print('📡 Response received!');
+      print('📡 Status code: ${response.statusCode}');
+
+      if (response.statusCode == 200) {
+        print('✅ Status 200 - Parsing JSON...');
+        final data = jsonDecode(response.body);
+        print('✅ Quiz ID: ${data['quizId']}');
+        print('✅ Questions count: ${data['questions']?.length}');
+        return QuizResponse.fromJson(data);
+      } else if (response.statusCode == 400) {
+        print('❌ Status 400 - Bad Request');
+        final error = jsonDecode(response.body);
+        throw Exception(error['details'] ?? 'Invalid request');
+      } else if (response.statusCode == 401) {
+        print('❌ Status 401 - Unauthorized');
+        throw Exception('Session expired. Please login again.');
+      } else if (response.statusCode == 504 || response.statusCode == 503) {
+        print('❌ Status ${response.statusCode} - Service Unavailable/Timeout');
+        throw Exception('AI service timeout. Please try again in a moment.');
+      } else {
+        print('❌ Unexpected status code: ${response.statusCode}');
+        throw Exception('Failed to generate quiz: ${response.statusCode}');
+      }
+    } on SocketException {
+      print('❌ Network error!');
+      throw Exception(
+        'No internet connection. Please check your network and try again.',
+      );
+    } on TimeoutException {
+      print('❌ Request timed out!');
+      throw Exception('Request timed out. Please try again.');
+    } catch (e) {
+      print('❌ Error generating skill-based quiz: $e');
       rethrow;
     }
   }
@@ -254,6 +331,297 @@ class CareerQuizService {
       print('❌ Error submitting quiz: $e');
       print('❌ Error type: ${e.runtimeType}');
       print('❌ Stack trace: $stackTrace');
+      rethrow;
+    }
+  }
+
+  /// Generate quiz from video transcript
+  static Future<QuizResponse> generateQuizFromTranscript({
+    required String transcript,
+    required String skillName,
+    String? videoTitle,
+  }) async {
+    try {
+      print('🎬 Starting transcript-based quiz generation...');
+      print('🎬 Skill: $skillName');
+      print('🎬 Video: ${videoTitle ?? "Unknown"}');
+      print('🎬 Transcript length: ${transcript.length} characters');
+      print(
+        '🎬 Transcript preview (first 300 chars): ${transcript.substring(0, transcript.length > 300 ? 300 : transcript.length)}',
+      );
+
+      final token = await _getToken();
+      if (token == null || token.isEmpty) {
+        throw Exception('Not logged in. Please login first.');
+      }
+
+      print(
+        '📤 Sending POST request to: ${ApiConfig.baseUrl}$_quizPath/generate-from-transcript',
+      );
+
+      final response = await http
+          .post(
+            Uri.parse(
+              '${ApiConfig.baseUrl}$_quizPath/generate-from-transcript',
+            ),
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer $token',
+            },
+            body: jsonEncode({
+              'transcript': transcript,
+              'skill_name': skillName,
+              'video_title': videoTitle,
+            }),
+          )
+          .timeout(
+            const Duration(seconds: 50),
+            onTimeout: () {
+              throw TimeoutException(
+                'Transcript quiz generation timed out. Please try again.',
+              );
+            },
+          );
+
+      print('📡 Transcript quiz response: ${response.statusCode}');
+      print(
+        '📡 Response body preview: ${response.body.substring(0, response.body.length > 200 ? 200 : response.body.length)}',
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        print('✅ Transcript-based quiz generated successfully!');
+        print('✅ Number of questions: ${data['questions']?.length ?? 0}');
+        return QuizResponse.fromJson(data);
+      } else if (response.statusCode == 400) {
+        final error = jsonDecode(response.body);
+        print('❌ Bad request (400): ${error['details']}');
+        throw Exception(error['details'] ?? 'Invalid request');
+      } else if (response.statusCode == 401) {
+        throw Exception('Session expired. Please login again.');
+      } else if (response.statusCode == 504 || response.statusCode == 503) {
+        throw Exception('AI service timeout. Please try again in a moment.');
+      } else if (response.statusCode == 500) {
+        final error = jsonDecode(response.body);
+        print('❌ Server error (500): ${error['details']}');
+        throw Exception(error['details'] ?? 'Server error. Please try again.');
+      } else {
+        print('❌ Unexpected status code: ${response.statusCode}');
+        print('❌ Response body: ${response.body}');
+        throw Exception(
+          'Failed to generate quiz. Status: ${response.statusCode}',
+        );
+      }
+    } on TimeoutException catch (e) {
+      print('💥 TimeoutException: $e');
+      throw Exception(
+        'Request timed out. The AI is taking longer than expected. Please try again.',
+      );
+    } on SocketException catch (e) {
+      print('💥 SocketException: $e');
+      throw Exception('No internet connection. Please check your network.');
+    } catch (e, stackTrace) {
+      print('💥 Error generating transcript quiz: $e');
+      print('💥 Stack trace: $stackTrace');
+      rethrow;
+    }
+  }
+
+  /// Generate quiz from video (backend extracts captions)
+  /// This is the NEW method - backend handles caption extraction!
+  static Future<QuizResponse> generateQuizFromVideo({
+    required String videoId,
+    required String skillName,
+    String? videoTitle,
+  }) async {
+    try {
+      print('🎥 Starting video-based quiz generation...');
+      print('🎥 Video ID: $videoId');
+      print('🎥 Skill: $skillName');
+      print('🎥 Video: ${videoTitle ?? "Unknown"}');
+      print('🎥 Full URL: ${ApiConfig.baseUrl}$_quizPath/generate-from-video');
+
+      final token = await _getToken();
+      if (token == null || token.isEmpty) {
+        throw Exception('Not logged in. Please login first.');
+      }
+
+      print('🎥 Making HTTP POST request to backend...');
+      final response = await http
+          .post(
+            Uri.parse('${ApiConfig.baseUrl}$_quizPath/generate-from-video'),
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer $token',
+            },
+            body: jsonEncode({
+              'video_id': videoId,
+              'skill_name': skillName,
+              'video_title': videoTitle,
+            }),
+          )
+          .timeout(
+            const Duration(
+              seconds: 60,
+            ), // Longer timeout for caption extraction
+            onTimeout: () {
+              throw TimeoutException(
+                'Video processing timed out. Please try again.',
+              );
+            },
+          );
+
+      print('📡 Response received!');
+      print('📡 Status code: ${response.statusCode}');
+
+      if (response.statusCode == 200) {
+        print('✅ Status 200 - Parsing JSON...');
+        final data = jsonDecode(response.body);
+
+        final transcriptAvailable = data['transcript_available'] ?? false;
+        final message = data['message'] ?? '';
+
+        print('✅ Quiz ID: ${data['quiz_id']}');
+        print('✅ Questions count: ${data['questions']?.length}');
+        print('📝 Transcript available: $transcriptAvailable');
+        print('💬 Message: $message');
+
+        return QuizResponse(
+          quizId: data['quiz_id'] as String,
+          questions: (data['questions'] as List)
+              .map((q) => QuizQuestion.fromJson(q))
+              .toList(),
+        );
+      } else if (response.statusCode == 400) {
+        final error = jsonDecode(response.body);
+        throw Exception(error['details'] ?? 'Invalid request');
+      } else if (response.statusCode == 401) {
+        throw Exception('Session expired. Please login again.');
+      } else if (response.statusCode == 504 || response.statusCode == 503) {
+        throw Exception('Service timeout. Please try again in a moment.');
+      } else if (response.statusCode == 500) {
+        final error = jsonDecode(response.body);
+        throw Exception(error['details'] ?? 'Server error. Please try again.');
+      } else {
+        throw Exception('Failed to generate quiz: ${response.statusCode}');
+      }
+    } on SocketException {
+      throw Exception('No internet connection. Please check your network.');
+    } on TimeoutException {
+      throw Exception('Request timed out. Please try again.');
+    } catch (e, stackTrace) {
+      print('❌ Error generating video quiz: $e');
+      print('❌ Stack trace: $stackTrace');
+      rethrow;
+    }
+  }
+
+  /// Get all videos with transcript information (Admin only)
+  static Future<List<dynamic>> getAllVideosWithTranscripts() async {
+    try {
+      print('📋 Fetching all videos with transcript info...');
+      final token = await _getToken();
+      if (token == null) throw Exception('Not authenticated');
+
+      final response = await http
+          .get(
+            Uri.parse('${ApiConfig.baseUrl}/api/learningvideos'),
+            headers: {'Authorization': 'Bearer $token'},
+          )
+          .timeout(const Duration(seconds: 15));
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final videos = data['videos'] as List;
+
+        // Add transcript info to each video
+        final videosWithInfo = <Map<String, dynamic>>[];
+        for (var video in videos) {
+          final transcriptInfo = await getVideoTranscript(video['id']);
+          videosWithInfo.add({
+            'id': video['id'],
+            'skillName': video['skillName'],
+            'videoTitle': video['videoTitle'],
+            'youtubeVideoId': video['youtubeVideoId'],
+            'hasTranscript': transcriptInfo['hasTranscript'] ?? false,
+            'transcriptLength': transcriptInfo['transcriptLength'] ?? 0,
+          });
+        }
+
+        print('✅ Loaded ${videosWithInfo.length} videos');
+        return videosWithInfo;
+      } else {
+        throw Exception('Failed to fetch videos: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('❌ Error fetching videos: $e');
+      rethrow;
+    }
+  }
+
+  /// Get transcript for a specific video
+  static Future<Map<String, dynamic>> getVideoTranscript(int videoId) async {
+    try {
+      final token = await _getToken();
+      if (token == null) throw Exception('Not authenticated');
+
+      final response = await http
+          .get(
+            Uri.parse(
+              '${ApiConfig.baseUrl}/api/learningvideos/$videoId/transcript',
+            ),
+            headers: {'Authorization': 'Bearer $token'},
+          )
+          .timeout(const Duration(seconds: 10));
+
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      } else {
+        throw Exception('Failed to fetch transcript: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('❌ Error fetching transcript: $e');
+      rethrow;
+    }
+  }
+
+  /// Update video transcript (Admin only)
+  static Future<void> updateVideoTranscript(
+    int videoId,
+    String transcript,
+  ) async {
+    try {
+      print('💾 Updating transcript for video $videoId...');
+      print('💾 Transcript length: ${transcript.length} characters');
+
+      final token = await _getToken();
+      if (token == null) throw Exception('Not authenticated');
+
+      final response = await http
+          .put(
+            Uri.parse(
+              '${ApiConfig.baseUrl}/api/learningvideos/$videoId/transcript',
+            ),
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer $token',
+            },
+            body: jsonEncode({'transcript': transcript}),
+          )
+          .timeout(const Duration(seconds: 30));
+
+      if (response.statusCode == 200) {
+        print('✅ Transcript updated successfully');
+      } else if (response.statusCode == 401) {
+        throw Exception('Unauthorized. Admin access required.');
+      } else if (response.statusCode == 404) {
+        throw Exception('Video not found');
+      } else {
+        final error = jsonDecode(response.body);
+        throw Exception(error['error'] ?? 'Failed to update transcript');
+      }
+    } catch (e) {
+      print('❌ Error updating transcript: $e');
       rethrow;
     }
   }

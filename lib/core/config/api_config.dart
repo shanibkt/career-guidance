@@ -11,14 +11,14 @@ class ApiConfig {
   /// To find your PC's IP:
   /// - Windows: Run `ipconfig` in terminal, look for IPv4 Address
   /// - Mac/Linux: Run `ifconfig` in terminal
-
+  ////mmmmmmmm
   /// Make sure:
   /// 1. Your backend is running on port 5001
   /// 2. Device and PC are on the same WiFi network (for physical devices)
   /// 3. Firewall allows port 5001
 
   // TEMPORARY: Using local backend
-  static const String baseUrl = 'http://192.168.1.64:5001'; // Android Emulator
+  static const String baseUrl = 'http://192.168.1.41:5001'; // Android Emulator
   // static const String baseUrl = 'http://192.168.1.59:5001'; // Physical device - change to your PC's IP
   // static const String baseUrl = 'https://career-guaidance-ahemf5fqfgayg0fw.canadacentral-01.azurewebsites.net'; // Azure production
 

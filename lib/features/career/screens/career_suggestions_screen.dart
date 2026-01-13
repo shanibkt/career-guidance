@@ -14,7 +14,7 @@ class CareerSuggestionsPage extends StatefulWidget {
 }
 
 class _CareerSuggestionsPageState extends State<CareerSuggestionsPage> {
-  List<Career> _careers = [];
+  List<Career> _sortedCareers = [];
   bool _isLoading = true;
   String? _error;
 
@@ -33,8 +33,18 @@ class _CareerSuggestionsPageState extends State<CareerSuggestionsPage> {
 
       final careers = await CareerService.getAllCareers();
 
+      // Calculate match percentages for each career
+      final careersWithMatches = careers
+          .map((career) => career.copyWithMatchPercentage(widget.userSkills))
+          .toList();
+
+      // Sort by match percentage (highest first)
+      careersWithMatches.sort(
+        (a, b) => b.matchPercentage.compareTo(a.matchPercentage),
+      );
+
       setState(() {
-        _careers = careers;
+        _sortedCareers = careersWithMatches;
         _isLoading = false;
       });
     } catch (e) {
@@ -98,7 +108,7 @@ class _CareerSuggestionsPageState extends State<CareerSuggestionsPage> {
                 ),
               ),
             )
-          : _careers.isEmpty
+          : _sortedCareers.isEmpty
           ? const Center(
               child: Text(
                 'No careers available',
@@ -107,10 +117,10 @@ class _CareerSuggestionsPageState extends State<CareerSuggestionsPage> {
             )
           : ListView.separated(
               padding: const EdgeInsets.all(20),
-              itemCount: _careers.length,
+              itemCount: _sortedCareers.length,
               separatorBuilder: (context, index) => const SizedBox(height: 16),
               itemBuilder: (context, index) {
-                final career = _careers[index];
+                final career = _sortedCareers[index];
                 return _buildSuggestionCard(
                   context,
                   career,
@@ -158,6 +168,20 @@ class _CareerSuggestionsPageState extends State<CareerSuggestionsPage> {
     Career career,
     Color color,
   ) {
+    // Determine match level color
+    Color matchColor;
+    String matchLabel;
+    if (career.matchPercentage >= 70) {
+      matchColor = Colors.green;
+      matchLabel = 'High Match';
+    } else if (career.matchPercentage >= 40) {
+      matchColor = Colors.orange;
+      matchLabel = 'Medium Match';
+    } else {
+      matchColor = Colors.grey;
+      matchLabel = 'Low Match';
+    }
+
     return GestureDetector(
       onTap: () {
         Navigator.push(
@@ -186,31 +210,92 @@ class _CareerSuggestionsPageState extends State<CareerSuggestionsPage> {
             ),
           ],
         ),
-        child: Row(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: color.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(_getCareerIcon(career.name), color: color, size: 30),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Text(
-                career.name,
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black87,
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: color.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(
+                    _getCareerIcon(career.name),
+                    color: color,
+                    size: 30,
+                  ),
                 ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        career.name,
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black87,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        matchLabel,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: matchColor,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                // Match percentage badge
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: matchColor.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: matchColor.withOpacity(0.3)),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.verified, size: 16, color: matchColor),
+                      const SizedBox(width: 4),
+                      Text(
+                        '${career.matchPercentage.round()}%',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: matchColor,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            // Progress bar
+            ClipRRect(
+              borderRadius: BorderRadius.circular(4),
+              child: LinearProgressIndicator(
+                value: career.matchPercentage / 100,
+                backgroundColor: Colors.grey.shade200,
+                valueColor: AlwaysStoppedAnimation<Color>(matchColor),
+                minHeight: 6,
               ),
             ),
-            const Icon(
-              Icons.arrow_forward_ios,
-              size: 16,
-              color: Colors.black54,
+            const SizedBox(height: 8),
+            Text(
+              '${career.requiredSkills.length} skills required',
+              style: TextStyle(fontSize: 12, color: Colors.grey[600]),
             ),
           ],
         ),

@@ -2,10 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'dart:math' show min;
 import 'package:printing/printing.dart';
-import 'package:pdf/widgets.dart' as pw;
 import '../../../providers/profile_provider.dart';
 import '../../../services/local/storage_service.dart';
-import '../../../services/api/chat_service.dart';
 import '../../../services/resume_service.dart';
 import '../../../services/pdf_resume_service.dart';
 

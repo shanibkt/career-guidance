@@ -17,6 +17,7 @@ import 'features/auth/screens/reset_password_screen.dart';
 import 'features/profile/screens/reg_profile_screen.dart';
 import 'features/home/screens/home_screen.dart';
 import 'features/quiz/screens/quiz_screen.dart';
+import 'features/quiz/screens/skill_quiz_screen.dart';
 import 'features/jobs/screens/job_finder_screen.dart';
 
 void main() {
@@ -120,6 +121,21 @@ class _MyAppState extends State<MyApp> {
             '/jobs': (context) => const JobFinderPage(),
             '/forgot-password': (context) => const ForgotPasswordPage(),
             '/reset-password': (context) => const ResetPasswordPage(),
+          },
+          onGenerateRoute: (settings) {
+            // Handle routes with arguments
+            if (settings.name == '/skill_quiz') {
+              final args = settings.arguments as Map<String, dynamic>?;
+              return MaterialPageRoute(
+                builder: (context) => SkillQuizScreen(
+                  skillName: args?['skillName'] ?? '',
+                  careerTitle: args?['careerTitle'],
+                  videoTitle: args?['videoTitle'],
+                  youtubeVideoId: args?['youtubeVideoId'],
+                ),
+              );
+            }
+            return null;
           },
           debugShowCheckedModeBanner: false,
         );

@@ -61,8 +61,8 @@ class _ProfilePageState extends State<ProfilePage> {
           CareerProgressService.getSelectedCareer(),
         ]);
 
-        final serverProfile = results[0] as Map<String, dynamic>?;
-        final selectedCareer = results[1] as Map<String, dynamic>?;
+        final serverProfile = results[0];
+        final selectedCareer = results[1];
 
         // Handle 401 errors
         if (serverProfile != null && serverProfile['_statusCode'] == 401) {

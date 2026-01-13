@@ -9,12 +9,14 @@ class CourseProgressService {
   static Future<void> saveProgress(
     String courseId,
     double watchedPercentage,
-    bool isCompleted,
-  ) async {
+    bool isCompleted, {
+    int? watchTimeSeconds,
+  }) async {
     final prefs = await SharedPreferences.getInstance();
     final data = {
       'watchedPercentage': watchedPercentage,
       'isCompleted': isCompleted,
+      'watchTimeSeconds': watchTimeSeconds ?? 0,
       'lastUpdated': DateTime.now().toIso8601String(),
     };
     await prefs.setString('$_keyPrefix$courseId', json.encode(data));
