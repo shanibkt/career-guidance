@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../services/local/storage_service.dart';
 import '../../features/auth/screens/login_screen.dart';
-import '../services/crashlytics_service.dart';
 
 /// Global auth error handler for 401 responses
 class AuthErrorHandler {
@@ -16,9 +15,6 @@ class AuthErrorHandler {
     if (ModalRoute.of(context)?.settings.name == '/login') {
       return;
     }
-
-    // Log to Crashlytics
-    CrashlyticsService.log('401 Unauthorized - Session expired');
 
     // Clear auth data
     await StorageService.clearAuthToken();

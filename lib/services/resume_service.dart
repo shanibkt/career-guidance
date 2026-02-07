@@ -59,6 +59,106 @@ class Education {
   );
 }
 
+// Certification model
+class CertificationData {
+  final String name;
+  final String issuer;
+  final String date;
+  final String credentialId;
+
+  CertificationData({
+    required this.name,
+    required this.issuer,
+    required this.date,
+    this.credentialId = '',
+  });
+
+  Map<String, dynamic> toJson() => {
+    'name': name,
+    'issuer': issuer,
+    'date': date,
+    'credentialId': credentialId,
+  };
+
+  factory CertificationData.fromJson(Map<String, dynamic> json) =>
+      CertificationData(
+        name: json['name'] ?? '',
+        issuer: json['issuer'] ?? '',
+        date: json['date'] ?? '',
+        credentialId: json['credentialId'] ?? '',
+      );
+}
+
+// Project model
+class ProjectData {
+  final String name;
+  final String description;
+  final String technologies;
+  final String link;
+
+  ProjectData({
+    required this.name,
+    required this.description,
+    required this.technologies,
+    this.link = '',
+  });
+
+  Map<String, dynamic> toJson() => {
+    'name': name,
+    'description': description,
+    'technologies': technologies,
+    'link': link,
+  };
+
+  factory ProjectData.fromJson(Map<String, dynamic> json) => ProjectData(
+    name: json['name'] ?? '',
+    description: json['description'] ?? '',
+    technologies: json['technologies'] ?? '',
+    link: json['link'] ?? '',
+  );
+}
+
+// Language model
+class LanguageData {
+  final String name;
+  final String proficiency;
+
+  LanguageData({required this.name, required this.proficiency});
+
+  Map<String, dynamic> toJson() => {'name': name, 'proficiency': proficiency};
+
+  factory LanguageData.fromJson(Map<String, dynamic> json) => LanguageData(
+    name: json['name'] ?? '',
+    proficiency: json['proficiency'] ?? '',
+  );
+}
+
+// Achievement model
+class AchievementData {
+  final String title;
+  final String description;
+  final String date;
+
+  AchievementData({
+    required this.title,
+    required this.description,
+    this.date = '',
+  });
+
+  Map<String, dynamic> toJson() => {
+    'title': title,
+    'description': description,
+    'date': date,
+  };
+
+  factory AchievementData.fromJson(Map<String, dynamic> json) =>
+      AchievementData(
+        title: json['title'] ?? '',
+        description: json['description'] ?? '',
+        date: json['date'] ?? '',
+      );
+}
+
 // Resume data model
 class ResumeData {
   final String fullName;
@@ -71,6 +171,10 @@ class ResumeData {
   final List<String> skills;
   final List<Experience> experiences;
   final List<Education> education;
+  final List<CertificationData> certifications;
+  final List<ProjectData> projects;
+  final List<LanguageData> languages;
+  final List<AchievementData> achievements;
 
   ResumeData({
     required this.fullName,
@@ -83,6 +187,10 @@ class ResumeData {
     required this.skills,
     required this.experiences,
     required this.education,
+    this.certifications = const [],
+    this.projects = const [],
+    this.languages = const [],
+    this.achievements = const [],
   });
 
   Map<String, dynamic> toJson() => {
@@ -96,6 +204,10 @@ class ResumeData {
     'skills': skills,
     'experiences': experiences.map((e) => e.toJson()).toList(),
     'education': education.map((e) => e.toJson()).toList(),
+    'certifications': certifications.map((e) => e.toJson()).toList(),
+    'projects': projects.map((e) => e.toJson()).toList(),
+    'languages': languages.map((e) => e.toJson()).toList(),
+    'achievements': achievements.map((e) => e.toJson()).toList(),
   };
 
   factory ResumeData.fromJson(Map<String, dynamic> json) {
@@ -116,6 +228,28 @@ class ResumeData {
       education:
           (json['education'] as List<dynamic>?)
               ?.map((e) => Education.fromJson(e as Map<String, dynamic>))
+              .toList() ??
+          [],
+      certifications:
+          (json['certifications'] as List<dynamic>?)
+              ?.map(
+                (e) => CertificationData.fromJson(e as Map<String, dynamic>),
+              )
+              .toList() ??
+          [],
+      projects:
+          (json['projects'] as List<dynamic>?)
+              ?.map((e) => ProjectData.fromJson(e as Map<String, dynamic>))
+              .toList() ??
+          [],
+      languages:
+          (json['languages'] as List<dynamic>?)
+              ?.map((e) => LanguageData.fromJson(e as Map<String, dynamic>))
+              .toList() ??
+          [],
+      achievements:
+          (json['achievements'] as List<dynamic>?)
+              ?.map((e) => AchievementData.fromJson(e as Map<String, dynamic>))
               .toList() ??
           [],
     );

@@ -4,7 +4,15 @@ import 'dart:math' show min;
 import 'package:printing/printing.dart';
 import '../../../providers/profile_provider.dart';
 import '../../../services/local/storage_service.dart';
-import '../../../services/resume_service.dart';
+import '../../../services/resume_service.dart' as resume_svc;
+import '../../../services/resume_service.dart'
+    show
+        ResumeService,
+        ResumeData,
+        CertificationData,
+        ProjectData,
+        LanguageData,
+        AchievementData;
 import '../../../services/pdf_resume_service.dart';
 
 class ResumeBuilderScreen extends StatefulWidget {
@@ -25,19 +33,118 @@ class _ResumeBuilderScreenState extends State<ResumeBuilderScreen>
   final _linkedinController = TextEditingController();
   final _summaryController = TextEditingController();
 
+  // Resume service for database operations
+  final ResumeService _resumeService = ResumeService();
+  bool _isLoading = true;
+  bool _isSaving = false;
+  bool _hasDbResume = false;
+
   List<String> skills = [];
   List<Experience> experiences = [];
-
   List<Education> educationList = [];
+  List<Certification> certifications = [];
+  List<Project> projects = [];
+  List<Language> languages = [];
+  List<Achievement> achievements = [];
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
-    _loadProfileData();
+    _loadResumeData();
   }
 
-  Future<void> _loadProfileData() async {
+  Future<void> _loadResumeData() async {
+    setState(() => _isLoading = true);
+
+    // First, try to load from database
+    try {
+      final result = await _resumeService.getResume();
+      if (result['success'] == true && result['data'] != null) {
+        final resumeData = result['data'] as ResumeData;
+        setState(() {
+          _hasDbResume = true;
+          _nameController.text = resumeData.fullName;
+          _titleController.text = resumeData.jobTitle;
+          _emailController.text = resumeData.email;
+          _phoneController.text = resumeData.phone;
+          _locationController.text = resumeData.location;
+          _linkedinController.text = resumeData.linkedin;
+          _summaryController.text = resumeData.professionalSummary;
+          skills = List<String>.from(resumeData.skills);
+
+          // Convert service models to screen models
+          experiences = resumeData.experiences
+              .map(
+                (e) => Experience(
+                  role: e.role,
+                  company: e.company,
+                  period: e.period,
+                  description: e.description,
+                ),
+              )
+              .toList();
+
+          educationList = resumeData.education
+              .map(
+                (e) => Education(
+                  degree: e.degree,
+                  institution: e.institution,
+                  year: e.year,
+                ),
+              )
+              .toList();
+
+          certifications = resumeData.certifications
+              .map(
+                (c) => Certification(
+                  name: c.name,
+                  issuer: c.issuer,
+                  date: c.date,
+                  credentialId: c.credentialId,
+                ),
+              )
+              .toList();
+
+          projects = resumeData.projects
+              .map(
+                (p) => Project(
+                  name: p.name,
+                  description: p.description,
+                  technologies: p.technologies,
+                  link: p.link,
+                ),
+              )
+              .toList();
+
+          languages = resumeData.languages
+              .map((l) => Language(name: l.name, proficiency: l.proficiency))
+              .toList();
+
+          achievements = resumeData.achievements
+              .map(
+                (a) => Achievement(
+                  title: a.title,
+                  description: a.description,
+                  date: a.date,
+                ),
+              )
+              .toList();
+
+          _isLoading = false;
+        });
+        return;
+      }
+    } catch (e) {
+      debugPrint('Could not load resume from database: $e');
+    }
+
+    // Fallback to profile data for new users
+    await _loadFromProfile();
+    setState(() => _isLoading = false);
+  }
+
+  Future<void> _loadFromProfile() async {
     final profileProvider = context.read<ProfileProvider>();
     final userMap = await StorageService.loadUser();
     final profile = profileProvider.profileData;
@@ -88,6 +195,133 @@ class _ResumeBuilderScreenState extends State<ResumeBuilderScreen>
         ];
       }
     });
+  }
+
+  Future<void> _saveToDatabase() async {
+    if (_isSaving) return;
+
+    setState(() => _isSaving = true);
+
+    try {
+      // Convert screen models to service models
+      final resumeData = ResumeData(
+        fullName: _nameController.text,
+        jobTitle: _titleController.text,
+        email: _emailController.text,
+        phone: _phoneController.text,
+        location: _locationController.text,
+        linkedin: _linkedinController.text,
+        professionalSummary: _summaryController.text,
+        skills: skills,
+        experiences: experiences
+            .map(
+              (e) => resume_svc.Experience(
+                role: e.role,
+                company: e.company,
+                period: e.period,
+                description: e.description,
+              ),
+            )
+            .toList(),
+        education: educationList
+            .map(
+              (e) => resume_svc.Education(
+                degree: e.degree,
+                institution: e.institution,
+                year: e.year,
+              ),
+            )
+            .toList(),
+        certifications: certifications
+            .map(
+              (c) => CertificationData(
+                name: c.name,
+                issuer: c.issuer,
+                date: c.date,
+                credentialId: c.credentialId,
+              ),
+            )
+            .toList(),
+        projects: projects
+            .map(
+              (p) => ProjectData(
+                name: p.name,
+                description: p.description,
+                technologies: p.technologies,
+                link: p.link,
+              ),
+            )
+            .toList(),
+        languages: languages
+            .map((l) => LanguageData(name: l.name, proficiency: l.proficiency))
+            .toList(),
+        achievements: achievements
+            .map(
+              (a) => AchievementData(
+                title: a.title,
+                description: a.description,
+                date: a.date,
+              ),
+            )
+            .toList(),
+      );
+
+      final result = await _resumeService.saveResume(resumeData);
+
+      if (mounted) {
+        if (result['success'] == true) {
+          setState(() => _hasDbResume = true);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Row(
+                children: [
+                  Icon(Icons.check_circle, color: Colors.white),
+                  SizedBox(width: 12),
+                  Text('Resume saved successfully!'),
+                ],
+              ),
+              backgroundColor: Colors.green,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Row(
+                children: [
+                  const Icon(Icons.error, color: Colors.white),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(result['message'] ?? 'Failed to save resume'),
+                  ),
+                ],
+              ),
+              backgroundColor: Colors.red,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error saving resume: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isSaving = false);
+      }
+    }
   }
 
   // ATS Score Calculation
@@ -279,6 +513,44 @@ class _ResumeBuilderScreenState extends State<ResumeBuilderScreen>
     setState(() => educationList.removeAt(index));
   }
 
+  void addCertification() {
+    setState(
+      () => certifications.add(Certification(name: '', issuer: '', date: '')),
+    );
+  }
+
+  void removeCertification(int index) {
+    setState(() => certifications.removeAt(index));
+  }
+
+  void addProject() {
+    setState(
+      () => projects.add(Project(name: '', description: '', technologies: '')),
+    );
+  }
+
+  void removeProject(int index) {
+    setState(() => projects.removeAt(index));
+  }
+
+  void addLanguage() {
+    setState(
+      () => languages.add(Language(name: '', proficiency: 'Intermediate')),
+    );
+  }
+
+  void removeLanguage(int index) {
+    setState(() => languages.removeAt(index));
+  }
+
+  void addAchievement() {
+    setState(() => achievements.add(Achievement(title: '', description: '')));
+  }
+
+  void removeAchievement(int index) {
+    setState(() => achievements.removeAt(index));
+  }
+
   void showPreview() async {
     try {
       // Generate PDF
@@ -293,6 +565,10 @@ class _ResumeBuilderScreenState extends State<ResumeBuilderScreen>
         skills: skills,
         experiences: experiences,
         education: educationList,
+        certifications: certifications,
+        projects: projects,
+        languages: languages,
+        achievements: achievements,
       );
 
       // Show PDF preview with download and print options
@@ -392,6 +668,10 @@ class _ResumeBuilderScreenState extends State<ResumeBuilderScreen>
         skills: skills,
         experiences: experiences,
         education: educationList,
+        certifications: certifications,
+        projects: projects,
+        languages: languages,
+        achievements: achievements,
       );
 
       // Share PDF (opens share dialog or saves to device)
@@ -630,6 +910,27 @@ class _ResumeBuilderScreenState extends State<ResumeBuilderScreen>
                     ),
                   ),
                   const Spacer(),
+                  // Save to Database button
+                  if (_isSaving)
+                    const SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  else
+                    IconButton(
+                      icon: Icon(
+                        _hasDbResume ? Icons.cloud_done : Icons.cloud_upload,
+                        color: _hasDbResume
+                            ? Colors.green.shade600
+                            : Colors.blue.shade700,
+                      ),
+                      tooltip: _hasDbResume
+                          ? 'Update saved resume'
+                          : 'Save to cloud',
+                      onPressed: _saveToDatabase,
+                    ),
+                  const SizedBox(width: 8),
                   Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
@@ -887,6 +1188,77 @@ class _ResumeBuilderScreenState extends State<ResumeBuilderScreen>
               _buildAddSkillButton(),
             ],
           ),
+
+          const SizedBox(height: 32),
+
+          // Certifications Section
+          _buildSectionHeader('Certifications', Icons.verified, Colors.teal),
+          const SizedBox(height: 16),
+          ...certifications.asMap().entries.map(
+            (entry) => Padding(
+              padding: const EdgeInsets.only(bottom: 16),
+              child: CertificationCard(
+                certification: entry.value,
+                onChanged: (cert) =>
+                    setState(() => certifications[entry.key] = cert),
+                onDelete: () => removeCertification(entry.key),
+              ),
+            ),
+          ),
+          _buildAddButton('Add Certification', addCertification),
+
+          const SizedBox(height: 32),
+
+          // Projects Section
+          _buildSectionHeader('Projects', Icons.folder_special, Colors.indigo),
+          const SizedBox(height: 16),
+          ...projects.asMap().entries.map(
+            (entry) => Padding(
+              padding: const EdgeInsets.only(bottom: 16),
+              child: ProjectCard(
+                project: entry.value,
+                onChanged: (proj) => setState(() => projects[entry.key] = proj),
+                onDelete: () => removeProject(entry.key),
+              ),
+            ),
+          ),
+          _buildAddButton('Add Project', addProject),
+
+          const SizedBox(height: 32),
+
+          // Languages Section
+          _buildSectionHeader('Languages', Icons.language, Colors.cyan),
+          const SizedBox(height: 16),
+          ...languages.asMap().entries.map(
+            (entry) => Padding(
+              padding: const EdgeInsets.only(bottom: 16),
+              child: LanguageCard(
+                language: entry.value,
+                onChanged: (lang) =>
+                    setState(() => languages[entry.key] = lang),
+                onDelete: () => removeLanguage(entry.key),
+              ),
+            ),
+          ),
+          _buildAddButton('Add Language', addLanguage),
+
+          const SizedBox(height: 32),
+
+          // Achievements Section
+          _buildSectionHeader('Achievements', Icons.emoji_events, Colors.amber),
+          const SizedBox(height: 16),
+          ...achievements.asMap().entries.map(
+            (entry) => Padding(
+              padding: const EdgeInsets.only(bottom: 16),
+              child: AchievementCard(
+                achievement: entry.value,
+                onChanged: (ach) =>
+                    setState(() => achievements[entry.key] = ach),
+                onDelete: () => removeAchievement(entry.key),
+              ),
+            ),
+          ),
+          _buildAddButton('Add Achievement', addAchievement),
 
           const SizedBox(height: 40),
         ],
@@ -1190,280 +1562,341 @@ class _ResumeBuilderScreenState extends State<ResumeBuilderScreen>
   }
 
   Widget _buildResumePreview() {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 20,
-            offset: const Offset(0, 4),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // Responsive values based on available width
+        final isSmallScreen = constraints.maxWidth < 360;
+        final horizontalPadding = isSmallScreen ? 16.0 : 24.0;
+        final verticalPadding = isSmallScreen ? 16.0 : 24.0;
+        final nameFontSize = isSmallScreen ? 22.0 : 28.0;
+        final titleFontSize = isSmallScreen ? 15.0 : 18.0;
+
+        return Container(
+          width: double.infinity,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.1),
+                blurRadius: 20,
+                offset: const Offset(0, 4),
+              ),
+            ],
           ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Header with gradient
-          Container(
-            padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [Colors.blue.shade700, Colors.blue.shade500],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(16),
-                topRight: Radius.circular(16),
-              ),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  _nameController.text.isEmpty
-                      ? 'Enter Your Name'
-                      : _nameController.text,
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 28,
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: 0.5,
-                    fontStyle: _nameController.text.isEmpty
-                        ? FontStyle.italic
-                        : FontStyle.normal,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Header with gradient
+              Container(
+                width: double.infinity,
+                padding: EdgeInsets.symmetric(
+                  horizontal: horizontalPadding,
+                  vertical: verticalPadding,
+                ),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [Colors.blue.shade700, Colors.blue.shade500],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(16),
+                    topRight: Radius.circular(16),
                   ),
                 ),
-                const SizedBox(height: 8),
-                Text(
-                  _titleController.text.isEmpty
-                      ? 'Enter Job Title'
-                      : _titleController.text,
-                  style: TextStyle(
-                    color: Colors.white.withOpacity(0.9),
-                    fontSize: 18,
-                    fontWeight: FontWeight.w500,
-                    fontStyle: _titleController.text.isEmpty
-                        ? FontStyle.italic
-                        : FontStyle.normal,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Wrap(
-                  spacing: 16,
-                  runSpacing: 8,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    if (_emailController.text.isNotEmpty)
-                      _buildContactChip(Icons.email, _emailController.text),
-                    if (_phoneController.text.isNotEmpty)
-                      _buildContactChip(Icons.phone, _phoneController.text),
-                    if (_locationController.text.isNotEmpty)
-                      _buildContactChip(
-                        Icons.location_on,
-                        _locationController.text,
+                    Text(
+                      _nameController.text.isEmpty
+                          ? 'Enter Your Name'
+                          : _nameController.text,
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: nameFontSize,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 0.5,
+                        fontStyle: _nameController.text.isEmpty
+                            ? FontStyle.italic
+                            : FontStyle.normal,
                       ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      _titleController.text.isEmpty
+                          ? 'Enter Job Title'
+                          : _titleController.text,
+                      style: TextStyle(
+                        color: Colors.white.withOpacity(0.9),
+                        fontSize: titleFontSize,
+                        fontWeight: FontWeight.w500,
+                        fontStyle: _titleController.text.isEmpty
+                            ? FontStyle.italic
+                            : FontStyle.normal,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Wrap(
+                      spacing: isSmallScreen ? 12 : 16,
+                      runSpacing: 8,
+                      children: [
+                        if (_emailController.text.isNotEmpty)
+                          _buildContactChip(Icons.email, _emailController.text),
+                        if (_phoneController.text.isNotEmpty)
+                          _buildContactChip(Icons.phone, _phoneController.text),
+                        if (_locationController.text.isNotEmpty)
+                          _buildContactChip(
+                            Icons.location_on,
+                            _locationController.text,
+                          ),
+                      ],
+                    ),
                   ],
                 ),
-              ],
-            ),
-          ),
+              ),
 
-          // Content
-          Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Summary
-                _buildPreviewSectionTitle('Professional Summary'),
-                const SizedBox(height: 8),
-                _summaryController.text.isEmpty
-                    ? Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: Colors.orange.shade50,
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: Colors.orange.shade300),
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(
-                              Icons.info_outline,
-                              color: Colors.orange.shade700,
-                              size: 20,
+              // Content
+              Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Summary
+                    _buildPreviewSectionTitle('Professional Summary'),
+                    const SizedBox(height: 8),
+                    _summaryController.text.isEmpty
+                        ? Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: Colors.orange.shade50,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: Colors.orange.shade300),
                             ),
-                            const SizedBox(width: 8),
-                            const Expanded(
-                              child: Text(
-                                'Enter Professional Summary',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  fontStyle: FontStyle.italic,
-                                  color: Colors.black87,
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.info_outline,
+                                  color: Colors.orange.shade700,
+                                  size: 20,
                                 ),
-                              ),
+                                const SizedBox(width: 8),
+                                const Expanded(
+                                  child: Text(
+                                    'Enter Professional Summary',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontStyle: FontStyle.italic,
+                                      color: Colors.black87,
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
-                          ],
-                        ),
-                      )
-                    : Text(
-                        _summaryController.text,
-                        style: const TextStyle(
-                          fontSize: 14,
-                          height: 1.6,
-                          color: Color(0xFF4A5568),
-                        ),
-                      ),
-                const SizedBox(height: 24),
+                          )
+                        : Text(
+                            _summaryController.text,
+                            style: const TextStyle(
+                              fontSize: 14,
+                              height: 1.6,
+                              color: Color(0xFF4A5568),
+                            ),
+                          ),
+                    const SizedBox(height: 24),
 
-                // Skills
-                _buildPreviewSectionTitle('Skills'),
-                const SizedBox(height: 12),
-                skills.where((s) => s.isNotEmpty).isEmpty
-                    ? Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: Colors.orange.shade50,
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: Colors.orange.shade300),
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(
-                              Icons.info_outline,
-                              color: Colors.orange.shade700,
-                              size: 20,
+                    // Skills
+                    _buildPreviewSectionTitle('Skills'),
+                    const SizedBox(height: 12),
+                    skills.where((s) => s.isNotEmpty).isEmpty
+                        ? Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: Colors.orange.shade50,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: Colors.orange.shade300),
                             ),
-                            const SizedBox(width: 8),
-                            const Expanded(
-                              child: Text(
-                                'Enter Skills',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  fontStyle: FontStyle.italic,
-                                  color: Colors.black87,
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.info_outline,
+                                  color: Colors.orange.shade700,
+                                  size: 20,
                                 ),
-                              ),
+                                const SizedBox(width: 8),
+                                const Expanded(
+                                  child: Text(
+                                    'Enter Skills',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontStyle: FontStyle.italic,
+                                      color: Colors.black87,
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
-                          ],
-                        ),
-                      )
-                    : Wrap(
-                        spacing: 8,
+                          )
+                        : Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: skills
+                                .where((s) => s.isNotEmpty)
+                                .map(
+                                  (skill) => Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                      vertical: 6,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: Colors.blue.shade50,
+                                      borderRadius: BorderRadius.circular(16),
+                                      border: Border.all(
+                                        color: Colors.blue.shade200,
+                                        width: 1,
+                                      ),
+                                    ),
+                                    child: Text(
+                                      skill,
+                                      style: TextStyle(
+                                        color: Colors.blue.shade700,
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ),
+                                )
+                                .toList(),
+                          ),
+                    const SizedBox(height: 24),
+
+                    // Experience
+                    _buildPreviewSectionTitle('Work Experience'),
+                    const SizedBox(height: 16),
+                    experiences.isEmpty
+                        ? Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: Colors.orange.shade50,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: Colors.orange.shade300),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.info_outline,
+                                  color: Colors.orange.shade700,
+                                  size: 20,
+                                ),
+                                const SizedBox(width: 8),
+                                const Expanded(
+                                  child: Text(
+                                    'Enter Work Experience',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontStyle: FontStyle.italic,
+                                      color: Colors.black87,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          )
+                        : Column(
+                            children: experiences
+                                .map((exp) => _buildPreviewExperience(exp))
+                                .toList(),
+                          ),
+                    const SizedBox(height: 24),
+
+                    // Education
+                    _buildPreviewSectionTitle('Education'),
+                    const SizedBox(height: 16),
+                    educationList.isEmpty
+                        ? Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: Colors.orange.shade50,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: Colors.orange.shade300),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.info_outline,
+                                  color: Colors.orange.shade700,
+                                  size: 20,
+                                ),
+                                const SizedBox(width: 8),
+                                const Expanded(
+                                  child: Text(
+                                    'Enter Education',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontStyle: FontStyle.italic,
+                                      color: Colors.black87,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          )
+                        : Column(
+                            children: educationList
+                                .map((edu) => _buildPreviewEducation(edu))
+                                .toList(),
+                          ),
+
+                    // Certifications Section
+                    if (certifications.any((c) => c.name.isNotEmpty)) ...[
+                      const SizedBox(height: 24),
+                      _buildPreviewSectionTitle('Certifications'),
+                      const SizedBox(height: 16),
+                      ...certifications
+                          .where((c) => c.name.isNotEmpty)
+                          .map((cert) => _buildPreviewCertification(cert)),
+                    ],
+
+                    // Projects Section
+                    if (projects.any((p) => p.name.isNotEmpty)) ...[
+                      const SizedBox(height: 24),
+                      _buildPreviewSectionTitle('Projects'),
+                      const SizedBox(height: 16),
+                      ...projects
+                          .where((p) => p.name.isNotEmpty)
+                          .map((proj) => _buildPreviewProject(proj)),
+                    ],
+
+                    // Languages Section
+                    if (languages.any((l) => l.name.isNotEmpty)) ...[
+                      const SizedBox(height: 24),
+                      _buildPreviewSectionTitle('Languages'),
+                      const SizedBox(height: 16),
+                      Wrap(
+                        spacing: 10,
                         runSpacing: 8,
-                        children: skills
-                            .where((s) => s.isNotEmpty)
-                            .map(
-                              (skill) => Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                  vertical: 6,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: Colors.blue.shade50,
-                                  borderRadius: BorderRadius.circular(16),
-                                  border: Border.all(
-                                    color: Colors.blue.shade200,
-                                    width: 1,
-                                  ),
-                                ),
-                                child: Text(
-                                  skill,
-                                  style: TextStyle(
-                                    color: Colors.blue.shade700,
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ),
-                            )
+                        children: languages
+                            .where((l) => l.name.isNotEmpty)
+                            .map((lang) => _buildPreviewLanguageChip(lang))
                             .toList(),
                       ),
-                const SizedBox(height: 24),
+                    ],
 
-                // Experience
-                _buildPreviewSectionTitle('Work Experience'),
-                const SizedBox(height: 16),
-                experiences.isEmpty
-                    ? Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: Colors.orange.shade50,
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: Colors.orange.shade300),
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(
-                              Icons.info_outline,
-                              color: Colors.orange.shade700,
-                              size: 20,
-                            ),
-                            const SizedBox(width: 8),
-                            const Expanded(
-                              child: Text(
-                                'Enter Work Experience',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  fontStyle: FontStyle.italic,
-                                  color: Colors.black87,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      )
-                    : Column(
-                        children: experiences
-                            .map((exp) => _buildPreviewExperience(exp))
-                            .toList(),
-                      ),
-                const SizedBox(height: 24),
-
-                // Education
-                _buildPreviewSectionTitle('Education'),
-                const SizedBox(height: 16),
-                educationList.isEmpty
-                    ? Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: Colors.orange.shade50,
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: Colors.orange.shade300),
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(
-                              Icons.info_outline,
-                              color: Colors.orange.shade700,
-                              size: 20,
-                            ),
-                            const SizedBox(width: 8),
-                            const Expanded(
-                              child: Text(
-                                'Enter Education',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  fontStyle: FontStyle.italic,
-                                  color: Colors.black87,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      )
-                    : Column(
-                        children: educationList
-                            .map((edu) => _buildPreviewEducation(edu))
-                            .toList(),
-                      ),
-              ],
-            ),
+                    // Achievements Section
+                    if (achievements.any((a) => a.title.isNotEmpty)) ...[
+                      const SizedBox(height: 24),
+                      _buildPreviewSectionTitle('Achievements'),
+                      const SizedBox(height: 16),
+                      ...achievements
+                          .where((a) => a.title.isNotEmpty)
+                          .map((ach) => _buildPreviewAchievement(ach)),
+                    ],
+                  ],
+                ),
+              ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -1595,6 +2028,206 @@ class _ResumeBuilderScreenState extends State<ResumeBuilderScreen>
                   '${edu.institution} • ${edu.year}',
                   style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
                 ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPreviewCertification(Certification cert) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            margin: const EdgeInsets.only(top: 6, right: 12),
+            width: 8,
+            height: 8,
+            decoration: BoxDecoration(
+              color: Colors.teal.shade600,
+              shape: BoxShape.circle,
+            ),
+          ),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  cert.name,
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF2D3142),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '${cert.issuer}${cert.date.isNotEmpty ? ' • ${cert.date}' : ''}',
+                  style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
+                ),
+                if (cert.credentialId.isNotEmpty)
+                  Text(
+                    'ID: ${cert.credentialId}',
+                    style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPreviewProject(Project proj) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            margin: const EdgeInsets.only(top: 6, right: 12),
+            width: 8,
+            height: 8,
+            decoration: BoxDecoration(
+              color: Colors.indigo.shade600,
+              shape: BoxShape.circle,
+            ),
+          ),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  proj.name,
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF2D3142),
+                  ),
+                ),
+                if (proj.description.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    proj.description,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      color: Color(0xFF4A5568),
+                    ),
+                  ),
+                ],
+                if (proj.technologies.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    'Tech: ${proj.technologies}',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: Colors.indigo.shade600,
+                      fontStyle: FontStyle.italic,
+                    ),
+                  ),
+                ],
+                if (proj.link.isNotEmpty) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    proj.link,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.blue.shade600,
+                      decoration: TextDecoration.underline,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPreviewLanguageChip(Language lang) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: Colors.cyan.shade50,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.cyan.shade200),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            lang.name,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: Colors.cyan.shade800,
+            ),
+          ),
+          const SizedBox(width: 6),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+            decoration: BoxDecoration(
+              color: Colors.cyan.shade100,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Text(
+              lang.proficiency,
+              style: TextStyle(fontSize: 11, color: Colors.cyan.shade700),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPreviewAchievement(Achievement ach) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            margin: const EdgeInsets.only(top: 6, right: 12),
+            width: 8,
+            height: 8,
+            decoration: BoxDecoration(
+              color: Colors.amber.shade600,
+              shape: BoxShape.circle,
+            ),
+          ),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  ach.title,
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF2D3142),
+                  ),
+                ),
+                if (ach.description.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    ach.description,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      color: Color(0xFF4A5568),
+                    ),
+                  ),
+                ],
+                if (ach.date.isNotEmpty) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    ach.date,
+                    style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+                  ),
+                ],
               ],
             ),
           ),
@@ -1802,6 +2435,49 @@ class Education {
     required this.institution,
     required this.year,
   });
+}
+
+class Certification {
+  String name;
+  String issuer;
+  String date;
+  String credentialId;
+
+  Certification({
+    required this.name,
+    required this.issuer,
+    required this.date,
+    this.credentialId = '',
+  });
+}
+
+class Project {
+  String name;
+  String description;
+  String technologies;
+  String link;
+
+  Project({
+    required this.name,
+    required this.description,
+    required this.technologies,
+    this.link = '',
+  });
+}
+
+class Language {
+  String name;
+  String proficiency;
+
+  Language({required this.name, required this.proficiency});
+}
+
+class Achievement {
+  String title;
+  String description;
+  String date;
+
+  Achievement({required this.title, required this.description, this.date = ''});
 }
 
 // Experience Card Widget
@@ -2205,6 +2881,587 @@ class _SkillChipState extends State<SkillChip> {
             child: Icon(Icons.close, size: 16, color: Colors.pink.shade900),
           ),
         ],
+      ),
+    );
+  }
+}
+
+// Certification Card Widget
+class CertificationCard extends StatefulWidget {
+  final Certification certification;
+  final ValueChanged<Certification> onChanged;
+  final VoidCallback onDelete;
+
+  const CertificationCard({
+    super.key,
+    required this.certification,
+    required this.onChanged,
+    required this.onDelete,
+  });
+
+  @override
+  State<CertificationCard> createState() => _CertificationCardState();
+}
+
+class _CertificationCardState extends State<CertificationCard> {
+  late TextEditingController nameController;
+  late TextEditingController issuerController;
+  late TextEditingController dateController;
+  late TextEditingController credentialController;
+
+  @override
+  void initState() {
+    super.initState();
+    nameController = TextEditingController(text: widget.certification.name);
+    issuerController = TextEditingController(text: widget.certification.issuer);
+    dateController = TextEditingController(text: widget.certification.date);
+    credentialController = TextEditingController(
+      text: widget.certification.credentialId,
+    );
+  }
+
+  @override
+  void dispose() {
+    nameController.dispose();
+    issuerController.dispose();
+    dateController.dispose();
+    credentialController.dispose();
+    super.dispose();
+  }
+
+  void _notify() {
+    widget.onChanged(
+      Certification(
+        name: nameController.text,
+        issuer: issuerController.text,
+        date: dateController.text,
+        credentialId: credentialController.text,
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.teal.shade200),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.teal.withOpacity(0.1),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.teal.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  Icons.verified,
+                  color: Colors.teal.shade700,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Text(
+                  'Certification',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                ),
+              ),
+              IconButton(
+                icon: Icon(Icons.delete_outline, color: Colors.red.shade400),
+                onPressed: widget.onDelete,
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          _buildField(
+            nameController,
+            'Certification Name',
+            Icons.card_membership,
+          ),
+          const SizedBox(height: 12),
+          _buildField(issuerController, 'Issuing Organization', Icons.business),
+          const SizedBox(height: 12),
+          _buildField(
+            dateController,
+            'Date (e.g., Jan 2024)',
+            Icons.calendar_today,
+          ),
+          const SizedBox(height: 12),
+          _buildField(
+            credentialController,
+            'Credential ID (optional)',
+            Icons.tag,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildField(
+    TextEditingController controller,
+    String hint,
+    IconData icon,
+  ) {
+    return TextField(
+      controller: controller,
+      onChanged: (_) => _notify(),
+      decoration: InputDecoration(
+        hintText: hint,
+        hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),
+        prefixIcon: Icon(icon, size: 18, color: Colors.teal.shade600),
+        filled: true,
+        fillColor: Colors.teal.shade50,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: BorderSide.none,
+        ),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 12,
+          vertical: 12,
+        ),
+      ),
+    );
+  }
+}
+
+// Project Card Widget
+class ProjectCard extends StatefulWidget {
+  final Project project;
+  final ValueChanged<Project> onChanged;
+  final VoidCallback onDelete;
+
+  const ProjectCard({
+    super.key,
+    required this.project,
+    required this.onChanged,
+    required this.onDelete,
+  });
+
+  @override
+  State<ProjectCard> createState() => _ProjectCardState();
+}
+
+class _ProjectCardState extends State<ProjectCard> {
+  late TextEditingController nameController;
+  late TextEditingController descController;
+  late TextEditingController techController;
+  late TextEditingController linkController;
+
+  @override
+  void initState() {
+    super.initState();
+    nameController = TextEditingController(text: widget.project.name);
+    descController = TextEditingController(text: widget.project.description);
+    techController = TextEditingController(text: widget.project.technologies);
+    linkController = TextEditingController(text: widget.project.link);
+  }
+
+  @override
+  void dispose() {
+    nameController.dispose();
+    descController.dispose();
+    techController.dispose();
+    linkController.dispose();
+    super.dispose();
+  }
+
+  void _notify() {
+    widget.onChanged(
+      Project(
+        name: nameController.text,
+        description: descController.text,
+        technologies: techController.text,
+        link: linkController.text,
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.indigo.shade200),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.indigo.withOpacity(0.1),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.indigo.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  Icons.folder_special,
+                  color: Colors.indigo.shade700,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Text(
+                  'Project',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                ),
+              ),
+              IconButton(
+                icon: Icon(Icons.delete_outline, color: Colors.red.shade400),
+                onPressed: widget.onDelete,
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          _buildField(nameController, 'Project Name', Icons.title),
+          const SizedBox(height: 12),
+          _buildField(
+            descController,
+            'Description',
+            Icons.description,
+            maxLines: 2,
+          ),
+          const SizedBox(height: 12),
+          _buildField(techController, 'Technologies Used', Icons.code),
+          const SizedBox(height: 12),
+          _buildField(linkController, 'Project Link (optional)', Icons.link),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildField(
+    TextEditingController controller,
+    String hint,
+    IconData icon, {
+    int maxLines = 1,
+  }) {
+    return TextField(
+      controller: controller,
+      onChanged: (_) => _notify(),
+      maxLines: maxLines,
+      decoration: InputDecoration(
+        hintText: hint,
+        hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),
+        prefixIcon: Icon(icon, size: 18, color: Colors.indigo.shade600),
+        filled: true,
+        fillColor: Colors.indigo.shade50,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: BorderSide.none,
+        ),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 12,
+          vertical: 12,
+        ),
+      ),
+    );
+  }
+}
+
+// Language Card Widget
+class LanguageCard extends StatefulWidget {
+  final Language language;
+  final ValueChanged<Language> onChanged;
+  final VoidCallback onDelete;
+
+  const LanguageCard({
+    super.key,
+    required this.language,
+    required this.onChanged,
+    required this.onDelete,
+  });
+
+  @override
+  State<LanguageCard> createState() => _LanguageCardState();
+}
+
+class _LanguageCardState extends State<LanguageCard> {
+  late TextEditingController nameController;
+  String selectedProficiency = 'Intermediate';
+  final proficiencyLevels = ['Beginner', 'Intermediate', 'Advanced', 'Native'];
+
+  @override
+  void initState() {
+    super.initState();
+    nameController = TextEditingController(text: widget.language.name);
+    selectedProficiency = widget.language.proficiency.isEmpty
+        ? 'Intermediate'
+        : widget.language.proficiency;
+  }
+
+  @override
+  void dispose() {
+    nameController.dispose();
+    super.dispose();
+  }
+
+  void _notify() {
+    widget.onChanged(
+      Language(name: nameController.text, proficiency: selectedProficiency),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.cyan.shade200),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.cyan.withOpacity(0.1),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.cyan.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  Icons.language,
+                  color: Colors.cyan.shade700,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Text(
+                  'Language',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                ),
+              ),
+              IconButton(
+                icon: Icon(Icons.delete_outline, color: Colors.red.shade400),
+                onPressed: widget.onDelete,
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          TextField(
+            controller: nameController,
+            onChanged: (_) => _notify(),
+            decoration: InputDecoration(
+              hintText: 'Language Name',
+              hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),
+              prefixIcon: Icon(
+                Icons.translate,
+                size: 18,
+                color: Colors.cyan.shade600,
+              ),
+              filled: true,
+              fillColor: Colors.cyan.shade50,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: BorderSide.none,
+              ),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 12,
+                vertical: 12,
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            decoration: BoxDecoration(
+              color: Colors.cyan.shade50,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton<String>(
+                value: selectedProficiency,
+                isExpanded: true,
+                icon: Icon(Icons.arrow_drop_down, color: Colors.cyan.shade600),
+                items: proficiencyLevels.map((level) {
+                  return DropdownMenuItem(value: level, child: Text(level));
+                }).toList(),
+                onChanged: (value) {
+                  setState(() {
+                    selectedProficiency = value!;
+                    _notify();
+                  });
+                },
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// Achievement Card Widget
+class AchievementCard extends StatefulWidget {
+  final Achievement achievement;
+  final ValueChanged<Achievement> onChanged;
+  final VoidCallback onDelete;
+
+  const AchievementCard({
+    super.key,
+    required this.achievement,
+    required this.onChanged,
+    required this.onDelete,
+  });
+
+  @override
+  State<AchievementCard> createState() => _AchievementCardState();
+}
+
+class _AchievementCardState extends State<AchievementCard> {
+  late TextEditingController titleController;
+  late TextEditingController descController;
+  late TextEditingController dateController;
+
+  @override
+  void initState() {
+    super.initState();
+    titleController = TextEditingController(text: widget.achievement.title);
+    descController = TextEditingController(
+      text: widget.achievement.description,
+    );
+    dateController = TextEditingController(text: widget.achievement.date);
+  }
+
+  @override
+  void dispose() {
+    titleController.dispose();
+    descController.dispose();
+    dateController.dispose();
+    super.dispose();
+  }
+
+  void _notify() {
+    widget.onChanged(
+      Achievement(
+        title: titleController.text,
+        description: descController.text,
+        date: dateController.text,
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.amber.shade200),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.amber.withOpacity(0.1),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.amber.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  Icons.emoji_events,
+                  color: Colors.amber.shade700,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Text(
+                  'Achievement',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                ),
+              ),
+              IconButton(
+                icon: Icon(Icons.delete_outline, color: Colors.red.shade400),
+                onPressed: widget.onDelete,
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          _buildField(
+            titleController,
+            'Achievement Title',
+            Icons.military_tech,
+          ),
+          const SizedBox(height: 12),
+          _buildField(
+            descController,
+            'Description',
+            Icons.description,
+            maxLines: 2,
+          ),
+          const SizedBox(height: 12),
+          _buildField(dateController, 'Date (optional)', Icons.calendar_today),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildField(
+    TextEditingController controller,
+    String hint,
+    IconData icon, {
+    int maxLines = 1,
+  }) {
+    return TextField(
+      controller: controller,
+      onChanged: (_) => _notify(),
+      maxLines: maxLines,
+      decoration: InputDecoration(
+        hintText: hint,
+        hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),
+        prefixIcon: Icon(icon, size: 18, color: Colors.amber.shade600),
+        filled: true,
+        fillColor: Colors.amber.shade50,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: BorderSide.none,
+        ),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 12,
+          vertical: 12,
+        ),
       ),
     );
   }

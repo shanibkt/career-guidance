@@ -17,6 +17,10 @@ class PdfResumeService {
     required List<String> skills,
     required List<dynamic> experiences,
     required List<dynamic> education,
+    List<dynamic>? certifications,
+    List<dynamic>? projects,
+    List<dynamic>? languages,
+    List<dynamic>? achievements,
   }) async {
     final pdf = pw.Document();
 
@@ -65,6 +69,50 @@ class PdfResumeService {
             _buildSectionTitle('Education'),
             pw.SizedBox(height: 8),
             ...education.map((edu) => _buildEducation(edu)),
+          ],
+
+          // Certifications Section
+          if (certifications != null &&
+              certifications.any((c) => _getField(c, 'name').isNotEmpty)) ...[
+            pw.SizedBox(height: 20),
+            _buildSectionTitle('Certifications'),
+            pw.SizedBox(height: 8),
+            ...certifications
+                .where((c) => _getField(c, 'name').isNotEmpty)
+                .map((cert) => _buildCertification(cert)),
+          ],
+
+          // Projects Section
+          if (projects != null &&
+              projects.any((p) => _getField(p, 'name').isNotEmpty)) ...[
+            pw.SizedBox(height: 20),
+            _buildSectionTitle('Projects'),
+            pw.SizedBox(height: 8),
+            ...projects
+                .where((p) => _getField(p, 'name').isNotEmpty)
+                .map((proj) => _buildProject(proj)),
+          ],
+
+          // Languages Section
+          if (languages != null &&
+              languages.any((l) => _getField(l, 'name').isNotEmpty)) ...[
+            pw.SizedBox(height: 20),
+            _buildSectionTitle('Languages'),
+            pw.SizedBox(height: 8),
+            _buildLanguages(
+              languages.where((l) => _getField(l, 'name').isNotEmpty).toList(),
+            ),
+          ],
+
+          // Achievements Section
+          if (achievements != null &&
+              achievements.any((a) => _getField(a, 'title').isNotEmpty)) ...[
+            pw.SizedBox(height: 20),
+            _buildSectionTitle('Achievements'),
+            pw.SizedBox(height: 8),
+            ...achievements
+                .where((a) => _getField(a, 'title').isNotEmpty)
+                .map((ach) => _buildAchievement(ach)),
           ],
         ],
       ),
@@ -326,12 +374,247 @@ class PdfResumeService {
           return obj.institution?.toString() ?? '';
         case 'year':
           return obj.year?.toString() ?? '';
+        case 'name':
+          return obj.name?.toString() ?? '';
+        case 'issuer':
+          return obj.issuer?.toString() ?? '';
+        case 'date':
+          return obj.date?.toString() ?? '';
+        case 'credentialId':
+          return obj.credentialId?.toString() ?? '';
+        case 'technologies':
+          return obj.technologies?.toString() ?? '';
+        case 'link':
+          return obj.link?.toString() ?? '';
+        case 'proficiency':
+          return obj.proficiency?.toString() ?? '';
+        case 'title':
+          return obj.title?.toString() ?? '';
         default:
           return '';
       }
     } catch (e) {
       return '';
     }
+  }
+
+  static pw.Widget _buildCertification(dynamic cert) {
+    final name = _getField(cert, 'name');
+    final issuer = _getField(cert, 'issuer');
+    final date = _getField(cert, 'date');
+    final credentialId = _getField(cert, 'credentialId');
+
+    return pw.Container(
+      margin: const pw.EdgeInsets.only(bottom: 12),
+      child: pw.Row(
+        mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: [
+          pw.Expanded(
+            child: pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                pw.Text(
+                  name,
+                  style: pw.TextStyle(
+                    fontSize: 12,
+                    fontWeight: pw.FontWeight.bold,
+                    color: PdfColors.grey900,
+                  ),
+                ),
+                pw.SizedBox(height: 2),
+                pw.Text(
+                  issuer,
+                  style: pw.TextStyle(fontSize: 11, color: PdfColors.teal700),
+                ),
+                if (credentialId.isNotEmpty) ...[
+                  pw.SizedBox(height: 2),
+                  pw.Text(
+                    'ID: $credentialId',
+                    style: pw.TextStyle(fontSize: 9, color: PdfColors.grey500),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          if (date.isNotEmpty)
+            pw.Text(
+              date,
+              style: pw.TextStyle(
+                fontSize: 10,
+                color: PdfColors.grey600,
+                fontStyle: pw.FontStyle.italic,
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  static pw.Widget _buildProject(dynamic proj) {
+    final name = _getField(proj, 'name');
+    final description = _getField(proj, 'description');
+    final technologies = _getField(proj, 'technologies');
+    final link = _getField(proj, 'link');
+
+    return pw.Container(
+      margin: const pw.EdgeInsets.only(bottom: 14),
+      child: pw.Column(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: [
+          pw.Text(
+            name,
+            style: pw.TextStyle(
+              fontSize: 12,
+              fontWeight: pw.FontWeight.bold,
+              color: PdfColors.grey900,
+            ),
+          ),
+          if (description.isNotEmpty) ...[
+            pw.SizedBox(height: 4),
+            pw.Text(
+              description,
+              style: pw.TextStyle(
+                fontSize: 10,
+                color: PdfColors.grey700,
+                lineSpacing: 1.3,
+              ),
+            ),
+          ],
+          if (technologies.isNotEmpty) ...[
+            pw.SizedBox(height: 4),
+            pw.Text(
+              'Technologies: $technologies',
+              style: pw.TextStyle(
+                fontSize: 10,
+                color: PdfColors.indigo700,
+                fontStyle: pw.FontStyle.italic,
+              ),
+            ),
+          ],
+          if (link.isNotEmpty) ...[
+            pw.SizedBox(height: 2),
+            pw.Text(
+              link,
+              style: pw.TextStyle(fontSize: 9, color: PdfColors.blue600),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  static pw.Widget _buildLanguages(List<dynamic> languages) {
+    return pw.Wrap(
+      spacing: 10,
+      runSpacing: 8,
+      children: languages.map((lang) {
+        final name = _getField(lang, 'name');
+        final proficiency = _getField(lang, 'proficiency');
+        return pw.Container(
+          padding: const pw.EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          decoration: pw.BoxDecoration(
+            color: PdfColors.cyan50,
+            borderRadius: pw.BorderRadius.circular(12),
+            border: pw.Border.all(color: PdfColors.cyan200, width: 1),
+          ),
+          child: pw.Row(
+            mainAxisSize: pw.MainAxisSize.min,
+            children: [
+              pw.Text(
+                name,
+                style: pw.TextStyle(
+                  fontSize: 10,
+                  fontWeight: pw.FontWeight.bold,
+                  color: PdfColors.cyan900,
+                ),
+              ),
+              pw.SizedBox(width: 6),
+              pw.Container(
+                padding: const pw.EdgeInsets.symmetric(
+                  horizontal: 6,
+                  vertical: 2,
+                ),
+                decoration: pw.BoxDecoration(
+                  color: PdfColors.cyan100,
+                  borderRadius: pw.BorderRadius.circular(8),
+                ),
+                child: pw.Text(
+                  proficiency,
+                  style: pw.TextStyle(fontSize: 8, color: PdfColors.cyan800),
+                ),
+              ),
+            ],
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  static pw.Widget _buildAchievement(dynamic ach) {
+    final title = _getField(ach, 'title');
+    final description = _getField(ach, 'description');
+    final date = _getField(ach, 'date');
+
+    return pw.Container(
+      margin: const pw.EdgeInsets.only(bottom: 12),
+      child: pw.Row(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: [
+          pw.Container(
+            margin: const pw.EdgeInsets.only(top: 4, right: 8),
+            width: 6,
+            height: 6,
+            decoration: const pw.BoxDecoration(
+              color: PdfColors.amber600,
+              shape: pw.BoxShape.circle,
+            ),
+          ),
+          pw.Expanded(
+            child: pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                pw.Row(
+                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                  children: [
+                    pw.Expanded(
+                      child: pw.Text(
+                        title,
+                        style: pw.TextStyle(
+                          fontSize: 12,
+                          fontWeight: pw.FontWeight.bold,
+                          color: PdfColors.grey900,
+                        ),
+                      ),
+                    ),
+                    if (date.isNotEmpty)
+                      pw.Text(
+                        date,
+                        style: pw.TextStyle(
+                          fontSize: 10,
+                          color: PdfColors.grey600,
+                          fontStyle: pw.FontStyle.italic,
+                        ),
+                      ),
+                  ],
+                ),
+                if (description.isNotEmpty) ...[
+                  pw.SizedBox(height: 4),
+                  pw.Text(
+                    description,
+                    style: pw.TextStyle(
+                      fontSize: 10,
+                      color: PdfColors.grey700,
+                      lineSpacing: 1.3,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   /// Save PDF to device
