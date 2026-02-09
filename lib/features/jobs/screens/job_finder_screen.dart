@@ -96,10 +96,11 @@ class _JobFinderPageState extends State<JobFinderPage>
     return Scaffold(
       appBar: AppBar(
         elevation: 0,
+        centerTitle: true,
         title: const Text('Job Finder'),
         bottom: TabBar(
           controller: _tabController,
-          isScrollable: true,
+          isScrollable: false,
           tabs: [
             const Tab(icon: Icon(Icons.star), text: 'For You'),
             const Tab(icon: Icon(Icons.search), text: 'Search'),

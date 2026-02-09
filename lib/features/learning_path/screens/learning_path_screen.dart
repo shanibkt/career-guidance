@@ -145,16 +145,10 @@ class _LearningPathPageState extends State<LearningPathPage> {
           SliverAppBar(
             expandedHeight: 200,
             pinned: true,
+            centerTitle: true,
             backgroundColor: widget.accentColor,
             flexibleSpace: FlexibleSpaceBar(
-              title: Text(
-                'Learning Path',
-                style: const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                ),
-              ),
+              centerTitle: true,
               background: Container(
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
@@ -170,14 +164,14 @@ class _LearningPathPageState extends State<LearningPathPage> {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const SizedBox(height: 40),
-                      const Icon(Icons.school, size: 60, color: Colors.white70),
-                      const SizedBox(height: 8),
-                      Text(
-                        widget.careerTitle,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          color: Colors.white70,
+                      const Icon(Icons.school, size: 60, color: Colors.white),
+                      const SizedBox(height: 12),
+                      const Text(
+                        'Learning Path',
+                        style: TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
                         ),
                       ),
                     ],
@@ -189,13 +183,39 @@ class _LearningPathPageState extends State<LearningPathPage> {
 
           // Content
           SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Overall Progress Card
-                  _buildOverallProgressCard(),
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Career Title Badge
+                    Container(
+                      margin: const EdgeInsets.only(bottom: 24),
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: widget.accentColor.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: widget.accentColor.withOpacity(0.3)),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.work_outline, size: 16, color: widget.accentColor),
+                          const SizedBox(width: 8),
+                          Text(
+                            widget.careerTitle,
+                            style: TextStyle(
+                              color: widget.accentColor,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    // Overall Progress Card
+                    _buildOverallProgressCard(),
 
                   const SizedBox(height: 24),
 
