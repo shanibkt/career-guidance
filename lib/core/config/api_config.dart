@@ -79,6 +79,13 @@ class ApiConfig {
   static const String adminUsers = '/api/admin/users';
   static const String adminStats = '/api/admin/stats';
 
+  // Notifications (Company Hiring)
+  static const String notifications = '/api/notification';
+  static const String notificationsUnreadCount =
+      '/api/notification/unread-count';
+  static const String notificationsMyApplications =
+      '/api/notification/my-applications';
+
   // ========================================
   // HELPER METHODS
   // ========================================
@@ -129,6 +136,14 @@ class ApiConfig {
   /// Get apply job URL
   static String getApplyJobUrl(String jobId) =>
       '$baseUrl/api/jobs/$jobId/apply';
+
+  /// Get notification read URL
+  static String getNotificationReadUrl(int notificationId) =>
+      '$baseUrl/api/notification/$notificationId/read';
+
+  /// Get notification apply URL
+  static String getNotificationApplyUrl(int notificationId) =>
+      '$baseUrl/api/notification/$notificationId/apply';
 
   // ========================================
   // TIMEOUT CONFIGURATION

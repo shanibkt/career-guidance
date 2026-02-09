@@ -4,8 +4,12 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../models/job.dart';
 import '../../../models/job_filter.dart';
 import '../../../providers/job_provider.dart';
+import '../../../providers/notification_provider.dart';
 import '../../../services/local/storage_service.dart';
 import '../widgets/job_filter_widget.dart';
+import '../../notifications/screens/notifications_screen.dart';
+import '../../notifications/screens/notification_detail_screen.dart';
+import '../../notifications/widgets/notification_badge.dart';
 
 // Constants
 const String kNoUrlMessage = 'Job URL is not available';
@@ -31,9 +35,11 @@ class _JobFinderPageState extends State<JobFinderPage>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 4, vsync: this);
     jobProvider = context.read<JobProvider>();
     _loadUserData();
+    // Fetch notification unread count
+    context.read<NotificationProvider>().fetchUnreadCount();
   }
 
   Future<void> _loadUserData() async {
@@ -93,10 +99,20 @@ class _JobFinderPageState extends State<JobFinderPage>
         title: const Text('Job Finder'),
         bottom: TabBar(
           controller: _tabController,
-          tabs: const [
-            Tab(icon: Icon(Icons.star), text: 'For You'),
-            Tab(icon: Icon(Icons.search), text: 'Search'),
-            Tab(icon: Icon(Icons.bookmark), text: 'Saved'),
+          isScrollable: true,
+          tabs: [
+            const Tab(icon: Icon(Icons.star), text: 'For You'),
+            const Tab(icon: Icon(Icons.search), text: 'Search'),
+            Tab(
+              icon: Consumer<NotificationProvider>(
+                builder: (context, np, _) => NotificationBadge(
+                  count: np.unreadCount,
+                  child: const Icon(Icons.notifications_outlined),
+                ),
+              ),
+              text: 'Hiring',
+            ),
+            const Tab(icon: Icon(Icons.bookmark), text: 'Saved'),
           ],
         ),
       ),
@@ -107,6 +123,8 @@ class _JobFinderPageState extends State<JobFinderPage>
           _buildPersonalizedTab(),
           // Search Tab
           _buildSearchTab(),
+          // Hiring Notifications Tab
+          _buildHiringTab(),
           // Saved Tab
           _buildSavedTab(),
         ],
@@ -151,6 +169,191 @@ class _JobFinderPageState extends State<JobFinderPage>
             itemBuilder: (context, index) {
               return _buildJobCard(provider.personalizedJobs[index], provider);
             },
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildHiringTab() {
+    return Consumer<NotificationProvider>(
+      builder: (context, provider, _) {
+        // Fetch on first render
+        if (!provider.isLoading && provider.notifications.isEmpty) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            provider.fetchNotifications();
+          });
+        }
+
+        if (provider.isLoading && provider.notifications.isEmpty) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        if (provider.notifications.isEmpty) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.notifications_none,
+                  size: 64,
+                  color: Colors.grey[400],
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'No Hiring Notifications',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Companies will notify you about\njob opportunities here.',
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+                const SizedBox(height: 24),
+                ElevatedButton.icon(
+                  onPressed: () => provider.fetchNotifications(),
+                  icon: const Icon(Icons.refresh),
+                  label: const Text('Refresh'),
+                ),
+              ],
+            ),
+          );
+        }
+
+        return RefreshIndicator(
+          onRefresh: () async {
+            await provider.fetchNotifications();
+            await provider.fetchUnreadCount();
+          },
+          child: Column(
+            children: [
+              // View all / My Applications bar
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      '${provider.notifications.length} notifications',
+                      style: const TextStyle(
+                        fontSize: 13,
+                        color: Color(0xFF6B7280),
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => const NotificationsScreen(),
+                          ),
+                        );
+                      },
+                      child: const Text('View All'),
+                    ),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: ListView.builder(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  itemCount: provider.notifications.length,
+                  itemBuilder: (context, index) {
+                    final n = provider.notifications[index];
+                    final isUnread = !n.isRead;
+                    return Card(
+                      margin: const EdgeInsets.only(bottom: 12),
+                      elevation: isUnread ? 2 : 1,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(12),
+                        onTap: () {
+                          if (isUnread)
+                            provider.markAsRead(n.hiringNotificationId);
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) =>
+                                  NotificationDetailScreen(notification: n),
+                            ),
+                          );
+                        },
+                        child: Padding(
+                          padding: const EdgeInsets.all(14),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 44,
+                                height: 44,
+                                decoration: BoxDecoration(
+                                  color: const Color(
+                                    0xFF6366F1,
+                                  ).withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: const Icon(
+                                  Icons.business,
+                                  color: Color(0xFF6366F1),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      n.title,
+                                      style: TextStyle(
+                                        fontSize: 15,
+                                        fontWeight: isUnread
+                                            ? FontWeight.w700
+                                            : FontWeight.w500,
+                                        color: const Color(0xFF1F2937),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      '${n.companyName} · ${n.position}',
+                                      style: const TextStyle(
+                                        fontSize: 13,
+                                        color: Color(0xFF6B7280),
+                                      ),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              if (isUnread)
+                                Container(
+                                  width: 10,
+                                  height: 10,
+                                  decoration: const BoxDecoration(
+                                    color: Color(0xFF6366F1),
+                                    shape: BoxShape.circle,
+                                  ),
+                                ),
+                              if (n.hasApplied)
+                                const Padding(
+                                  padding: EdgeInsets.only(left: 8),
+                                  child: Icon(
+                                    Icons.check_circle,
+                                    size: 18,
+                                    color: Color(0xFF10B981),
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
           ),
         );
       },

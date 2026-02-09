@@ -6,6 +6,7 @@ import 'core/utils/network_helper.dart';
 import 'providers/auth_provider.dart';
 import 'providers/profile_provider.dart';
 import 'providers/job_provider.dart';
+import 'providers/notification_provider.dart';
 // Feature-based imports
 import 'features/auth/screens/login_screen.dart';
 import 'features/auth/screens/signup_screen.dart';
@@ -16,6 +17,8 @@ import 'features/home/screens/home_screen.dart';
 import 'features/quiz/screens/quiz_screen.dart';
 import 'features/quiz/screens/skill_quiz_screen.dart';
 import 'features/jobs/screens/job_finder_screen.dart';
+import 'features/notifications/screens/notifications_screen.dart';
+import 'features/notifications/screens/my_applications_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -31,6 +34,9 @@ Future<void> main() async {
           create: (_) => ProfileProvider(),
         ),
         ChangeNotifierProvider<JobProvider>(create: (_) => JobProvider()),
+        ChangeNotifierProvider<NotificationProvider>(
+          create: (_) => NotificationProvider(),
+        ),
       ],
       child: const MyApp(),
     ),
@@ -82,6 +88,8 @@ class _MyAppState extends State<MyApp> {
             '/home': (context) => const HomeScreen(),
             '/quiz': (context) => const QuizScreen(),
             '/jobs': (context) => const JobFinderPage(),
+            '/notifications': (context) => const NotificationsScreen(),
+            '/my-applications': (context) => const MyApplicationsScreen(),
             '/forgot-password': (context) => const ForgotPasswordPage(),
             '/reset-password': (context) => const ResetPasswordPage(),
           },

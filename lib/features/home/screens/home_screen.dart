@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/foundation.dart';
+import 'package:provider/provider.dart';
 import '../../career/screens/career_suggestions_screen.dart';
 import '../../chat/screens/chat_screen.dart';
 import '../../learning_path/screens/learning_path_screen.dart';
@@ -8,8 +9,11 @@ import '../../profile/screens/profile_screen.dart';
 import '../../resume_builder/screens/resume_builder_screen.dart';
 import '../../quiz/screens/ai_quiz_screen.dart';
 import '../../jobs/screens/job_finder_screen.dart';
+import '../../notifications/screens/notifications_screen.dart';
+import '../../notifications/widgets/notification_badge.dart';
 import 'package:flutter/material.dart';
 import '../../../models/user.dart';
+import '../../../providers/notification_provider.dart';
 import '../../../services/local/storage_service.dart';
 import '../../../services/api/profile_service.dart';
 import '../../../services/api/career_progress_service.dart';
@@ -35,6 +39,10 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     _loadSaved();
+    // Fetch unread hiring notification count
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<NotificationProvider>().fetchUnreadCount();
+    });
   }
 
   Future<void> _loadSaved() async {
@@ -224,7 +232,33 @@ class _HomeScreenState extends State<HomeScreen> {
                   ],
                 ),
               ),
-              const SizedBox(width: 12),
+              // Notification bell
+              Consumer<NotificationProvider>(
+                builder: (context, np, _) => InkWell(
+                  onTap: () {
+                    Navigator.of(context)
+                        .push(
+                          MaterialPageRoute(
+                            builder: (_) => const NotificationsScreen(),
+                          ),
+                        )
+                        .then((_) => np.fetchUnreadCount());
+                  },
+                  borderRadius: BorderRadius.circular(20),
+                  child: Padding(
+                    padding: const EdgeInsets.all(8),
+                    child: NotificationBadge(
+                      count: np.unreadCount,
+                      child: const Icon(
+                        Icons.notifications_outlined,
+                        size: 26,
+                        color: Color(0xFF4A7DFF),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 4),
               // Modern Profile avatar with gradient border
               InkWell(
                 onTap: () {
