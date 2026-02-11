@@ -38,8 +38,10 @@ class _JobFinderPageState extends State<JobFinderPage>
     _tabController = TabController(length: 4, vsync: this);
     jobProvider = context.read<JobProvider>();
     _loadUserData();
-    // Fetch notification unread count
-    context.read<NotificationProvider>().fetchUnreadCount();
+    // Fetch notifications and unread count once
+    final np = context.read<NotificationProvider>();
+    np.fetchUnreadCount();
+    np.fetchNotifications();
   }
 
   Future<void> _loadUserData() async {
@@ -179,15 +181,26 @@ class _JobFinderPageState extends State<JobFinderPage>
   Widget _buildHiringTab() {
     return Consumer<NotificationProvider>(
       builder: (context, provider, _) {
-        // Fetch on first render
-        if (!provider.isLoading && provider.notifications.isEmpty) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            provider.fetchNotifications();
-          });
+        if (provider.isLoading) {
+          return const Center(child: CircularProgressIndicator());
         }
 
-        if (provider.isLoading && provider.notifications.isEmpty) {
-          return const Center(child: CircularProgressIndicator());
+        if (provider.errorMessage != null) {
+           return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.error_outline, size: 64, color: Colors.red),
+                const SizedBox(height: 16),
+                Text('Error: ${provider.errorMessage}'),
+                const SizedBox(height: 16),
+                ElevatedButton(
+                  onPressed: () => provider.fetchNotifications(),
+                  child: const Text('Retry'),
+                ),
+              ],
+            ),
+          );
         }
 
         if (provider.notifications.isEmpty) {
