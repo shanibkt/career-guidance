@@ -137,7 +137,8 @@ class ChatService {
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        return List<Map<String, dynamic>>.from(data['history'] ?? []);
+        // Fixed: Backend returns 'messages' list for /api/chat/history
+        return List<Map<String, dynamic>>.from(data['messages'] ?? []);
       } else if (response.statusCode == 404) {
         // No history found yet
         return [];

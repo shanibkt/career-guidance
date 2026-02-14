@@ -18,7 +18,8 @@ class ApiConfig {
   /// 3. Firewall allows port 5001
 
   // TEMPORARY: Using local backend
-  static const String baseUrl = 'http://10.0.2.2:5001'; 
+  static const String baseUrl =
+      'https://carrier-bnawa0crdsgmcqak.eastus-01.azurewebsites.net';
   //  http://10.0.2.2:5001      // Android Emulator
   // static const String baseUrl = 'http://192.168.1.59:5001'; // Physical device - change to your PC's IP
   // static const String baseUrl = 'https://career-guaidance-ahemf5fqfgayg0fw.canadacentral-01.azurewebsites.net'; // Azure production
@@ -29,7 +30,7 @@ class ApiConfig {
 
   // Auth
   static const String login = '/api/auth/login';
-  static const String register = '/api/auth/register';
+  static const String register = '/api/auth/register'; // Fixed: matches backend
   static const String logout = '/api/auth/logout';
   static const String refreshToken = '/api/auth/refresh';
   static const String forgotPassword = '/api/auth/forgot-password';
@@ -64,7 +65,7 @@ class ApiConfig {
   static const String chatSessions = '/api/chat/sessions'; // GET/POST sessions
   static const String chatMessages = '/api/chat/messages'; // POST messages
   static const String chatHistory =
-      '/api/chat/sessions'; // Fixed: same as sessions endpoint
+      '/api/chat/history'; // Fixed: points to ChatController.GetHistory (returns messages)
 
   // Jobs
   static const String jobSearch = '/api/jobs/search';

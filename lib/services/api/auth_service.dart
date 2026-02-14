@@ -197,11 +197,11 @@ class AuthService {
     }
   }
 
-  /// POST /api/auth/signup
+  /// POST /api/auth/register
   /// Sends a map of signup fields and expects similar response to login:
   /// { "token": "<jwt>", "user": { ... } }
   static Future<AuthResult> signup(Map<String, dynamic> payload) async {
-    final uri = Uri.parse('$_effectiveBaseUrl/api/auth/signup');
+    final uri = Uri.parse('$_effectiveBaseUrl${ApiConfig.register}');
 
     try {
       // Debug: print payload being sent so we can inspect if fields are present
