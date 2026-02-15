@@ -17,12 +17,13 @@ class ApiConfig {
   /// 2. Device and PC are on the same WiFi network (for physical devices)
   /// 3. Firewall allows port 5001
 
-  // TEMPORARY: Using local backend
-  static const String baseUrl =
-      'https://carrier-bnawa0crdsgmcqak.eastus-01.azurewebsites.net';
-  //  http://10.0.2.2:5001      // Android Emulator
+  // DEVELOPMENT: Using local backend
+  static const String baseUrl = 'http://10.0.2.2:5001'; // Android Emulator
+
+  // OTHER OPTIONS (uncomment as needed):
   // static const String baseUrl = 'http://192.168.1.59:5001'; // Physical device - change to your PC's IP
-  // static const String baseUrl = 'https://career-guaidance-ahemf5fqfgayg0fw.canadacentral-01.azurewebsites.net'; // Azure production
+  // static const String baseUrl = 'https://carrier-bnawa0crdsgmcqak.eastus-01.azurewebsites.net'; // Azure production
+  // static const String baseUrl = 'https://career-guaidance-ahemf5fqfgayg0fw.canadacentral-01.azurewebsites.net'; // Azure alternative
 
   // ========================================
   // ENDPOINTS--

@@ -155,74 +155,28 @@ class _SignUpScreenState extends State<SignUpScreen> {
           ),
         );
       } else {
-        // Signup failed - check if it's a partial success (user created but profile failed)
-        if (result.message?.contains('Unhandled type') == true ||
-            result.message?.contains('already exists') == true) {
-          // Backend error but user was created - try to auto-login and proceed
-          try {
-            final loginResult = await AuthService.login(
-              payload['email'] as String,
-              payload['password'] as String,
-            );
+        // Signup failed - show the backend's error message
+        if (!mounted) return;
 
-            if (loginResult.success && loginResult.user != null) {
-              // Login successful - save data and proceed to profile completion
-              await StorageService.saveUser({
-                'id': loginResult.user!.id,
-                'fullName': loginResult.user!.fullName,
-                'username': loginResult.user!.username,
-                'email': loginResult.user!.email,
-              });
-
-              if (loginResult.token != null) {
-                await StorageService.saveAuthToken(loginResult.token!);
-              }
-
-              // Save initial profile data
-              final profileData = {
-                'phoneNumber': payload['phone'],
-                'age': payload['age'],
-                'gender': payload['gender'],
-                'dob': payload['dob'],
-              };
-              profileData.removeWhere((key, value) => value == null);
-              if (profileData.isNotEmpty) {
-                await StorageService.saveProfile(profileData);
-              }
-
-              if (!mounted) return;
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Account verified! Complete your profile'),
-                ),
-              );
-              Navigator.of(context).pushReplacement(
-                MaterialPageRoute(
-                  builder: (_) => const RegProfileScreen(isFromSignup: true),
-                ),
-              );
-              return;
-            }
-          } catch (_) {
-            // Auto-login failed, show message
-          }
-
-          // Fallback: ask user to login manually
-          if (!mounted) return;
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text(
-                'Account created! Please login to complete your profile.',
-              ),
-              duration: Duration(seconds: 3),
-            ),
-          );
-        } else {
-          if (!mounted) return;
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(result.message ?? 'Signup failed')),
-          );
-        }
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(result.message ?? 'Signup failed. Please try again.'),
+            backgroundColor:
+                result.message?.toLowerCase().contains('already') == true
+                ? Colors.orange
+                : Colors.red,
+            duration: const Duration(seconds: 4),
+            action:
+                result.message?.toLowerCase().contains('email') == true ||
+                    result.message?.toLowerCase().contains('username') == true
+                ? SnackBarAction(
+                    label: 'Login',
+                    textColor: Colors.white,
+                    onPressed: () => Navigator.of(context).pop(),
+                  )
+                : null,
+          ),
+        );
       }
     } catch (e) {
       if (!mounted) return;

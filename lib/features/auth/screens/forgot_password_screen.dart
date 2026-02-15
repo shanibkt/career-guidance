@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../services/api/auth_service.dart';
 
 class ForgotPasswordPage extends StatefulWidget {
   const ForgotPasswordPage({super.key});
@@ -151,6 +152,21 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                 color: Color(0xFF5872C0),
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 10),
+
+          // I have a token
+          TextButton(
+            onPressed: () => Navigator.of(context).pushNamed('/reset-password'),
+            child: const Text(
+              'I already have a token',
+              style: TextStyle(
+                color: Color(0xFF5872C0),
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
               ),
             ),
           ),
@@ -347,44 +363,32 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
 
     setState(() => _isLoading = true);
 
-    // Simulate sending email (UI only for now)
-    await Future.delayed(const Duration(seconds: 1));
+    final email = _emailCtrl.text.trim();
+    try {
+      final result = await AuthService.forgotPassword(email);
 
-    if (!mounted) return;
+      if (!mounted) return;
 
-    // Show success screen
-    setState(() {
-      _emailSent = true;
-      _isLoading = false;
-    });
-
-    // TODO: Connect to backend when ready
-    // final email = _emailCtrl.text.trim();
-    // try {
-    //   final result = await AuthService.forgotPassword(email);
-    //
-    //   if (!mounted) return;
-    //
-    //   if (result.success) {
-    //     setState(() {
-    //       _emailSent = true;
-    //       _isLoading = false;
-    //     });
-    //   } else {
-    //     setState(() => _isLoading = false);
-    //     ScaffoldMessenger.of(context).showSnackBar(
-    //       SnackBar(
-    //         content: Text(result.message ?? 'Failed to send reset link'),
-    //         backgroundColor: Colors.red,
-    //       ),
-    //     );
-    //   }
-    // } catch (e) {
-    //   if (!mounted) return;
-    //   setState(() => _isLoading = false);
-    //   ScaffoldMessenger.of(context).showSnackBar(
-    //     SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
-    //   );
-    // }
+      if (result.success) {
+        setState(() {
+          _emailSent = true;
+          _isLoading = false;
+        });
+      } else {
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(result.message ?? 'Failed to send reset link'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+      );
+    }
   }
 }

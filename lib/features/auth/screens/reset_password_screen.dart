@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../services/api/auth_service.dart';
 
 class ResetPasswordPage extends StatefulWidget {
   final String? token;
@@ -11,6 +12,7 @@ class ResetPasswordPage extends StatefulWidget {
 
 class _ResetPasswordPageState extends State<ResetPasswordPage> {
   final _formKey = GlobalKey<FormState>();
+  final _tokenCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
   final _confirmPasswordCtrl = TextEditingController();
   bool _isLoading = false;
@@ -19,7 +21,16 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
   bool _obscureConfirmPassword = true;
 
   @override
+  void initState() {
+    super.initState();
+    if (widget.token != null) {
+      _tokenCtrl.text = widget.token!;
+    }
+  }
+
+  @override
   void dispose() {
+    _tokenCtrl.dispose();
     _passwordCtrl.dispose();
     _confirmPasswordCtrl.dispose();
     super.dispose();
@@ -112,6 +123,17 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
           ),
 
           const SizedBox(height: 40),
+
+          // Token field
+          _buildTextField(
+            controller: _tokenCtrl,
+            hintText: 'Reset Token',
+            icon: Icons.vpn_key,
+            validator: (v) =>
+                v == null || v.isEmpty ? 'Enter reset token' : null,
+          ),
+
+          const SizedBox(height: 16),
 
           // New Password field
           _buildPasswordField(
@@ -253,6 +275,43 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
     );
   }
 
+  // Text field helper
+  Widget _buildTextField({
+    required TextEditingController controller,
+    required String hintText,
+    required IconData icon,
+    String? Function(String?)? validator,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(30),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.2),
+            spreadRadius: 2,
+            blurRadius: 5,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: TextFormField(
+        controller: controller,
+        validator: validator,
+        decoration: InputDecoration(
+          hintText: hintText,
+          hintStyle: const TextStyle(color: Colors.black45),
+          prefixIcon: Padding(
+            padding: const EdgeInsets.only(left: 20, right: 10),
+            child: Icon(icon, color: Colors.black54),
+          ),
+          border: InputBorder.none,
+          contentPadding: const EdgeInsets.symmetric(vertical: 18),
+        ),
+      ),
+    );
+  }
+
   // Password field helper
   Widget _buildPasswordField({
     required TextEditingController controller,
@@ -331,47 +390,34 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
 
     setState(() => _isLoading = true);
 
-    // Simulate API call for now
-    await Future.delayed(const Duration(seconds: 2));
+    try {
+      final result = await AuthService.resetPassword(
+        _tokenCtrl.text.trim(),
+        _passwordCtrl.text,
+      );
 
-    if (!mounted) return;
+      if (!mounted) return;
 
-    // For now, just show success
-    // When backend is ready, call: AuthService.resetPassword(widget.token, _passwordCtrl.text)
-    setState(() {
-      _passwordReset = true;
-      _isLoading = false;
-    });
-
-    // TODO: Connect to backend
-    // try {
-    //   final result = await AuthService.resetPassword(
-    //     token: widget.token ?? '',
-    //     newPassword: _passwordCtrl.text,
-    //   );
-    //
-    //   if (!mounted) return;
-    //
-    //   if (result.success) {
-    //     setState(() {
-    //       _passwordReset = true;
-    //       _isLoading = false;
-    //     });
-    //   } else {
-    //     setState(() => _isLoading = false);
-    //     ScaffoldMessenger.of(context).showSnackBar(
-    //       SnackBar(
-    //         content: Text(result.message ?? 'Failed to reset password'),
-    //         backgroundColor: Colors.red,
-    //       ),
-    //     );
-    //   }
-    // } catch (e) {
-    //   if (!mounted) return;
-    //   setState(() => _isLoading = false);
-    //   ScaffoldMessenger.of(context).showSnackBar(
-    //     SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
-    //   );
-    // }
+      if (result.success) {
+        setState(() {
+          _passwordReset = true;
+          _isLoading = false;
+        });
+      } else {
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(result.message ?? 'Failed to reset password'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+      );
+    }
   }
 }
