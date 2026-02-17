@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../models/quiz_models.dart';
 import 'ai_quiz_screen.dart';
 import 'quiz_review_screen.dart';
+import '../../career/screens/career_detail_screen.dart';
 
 class QuizResultsScreen extends StatelessWidget {
   final QuizResult result;
@@ -75,6 +76,25 @@ class QuizResultsScreen extends StatelessWidget {
             ...result.skillBreakdown.map(
               (skill) => _buildSkillScoreCard(skill),
             ),
+            const SizedBox(height: 24),
+
+            // Career Matches
+            const Text(
+              'Career Matches',
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 12),
+            if (result.careerMatches.isEmpty)
+              const Card(
+                child: Padding(
+                  padding: EdgeInsets.all(16),
+                  child: Text('No matching careers found based on this quiz.'),
+                ),
+              )
+            else
+              ...result.careerMatches
+                  .take(3)
+                  .map((match) => _buildCareerMatchCard(context, match)),
             const SizedBox(height: 24),
 
             // Action Buttons
@@ -267,6 +287,45 @@ class QuizResultsScreen extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildCareerMatchCard(BuildContext context, CareerMatch match) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      elevation: 2,
+      child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        leading: Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: Colors.blue.shade50,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: const Icon(Icons.work_outline, color: Colors.blueAccent),
+        ),
+        title: Text(
+          match.careerName,
+          style: const TextStyle(fontWeight: FontWeight.bold),
+        ),
+        subtitle: Text('Match: ${match.matchPercentage.toStringAsFixed(1)}%'),
+        trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => CareerDetailPage(
+                careerTitle: match.careerName,
+                overview: 'Career match based on your quiz results.',
+                requiredSkills: match.matchingSkills + match.missingSkills,
+                userSkills: match.matchingSkills,
+                accentColor: Colors.blueAccent,
+              ),
+            ),
+          );
+        },
       ),
     );
   }

@@ -225,14 +225,35 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
               borderRadius: BorderRadius.circular(30),
             ),
             padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 40),
+            backgroundColor: Colors.white,
+            foregroundColor: const Color(0xFF8B5CF6),
+            elevation: 2,
+            side: const BorderSide(color: Color(0xFF8B5CF6), width: 1),
+          ),
+          child: const Text(
+            'Back to Login',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+          ),
+        ),
+
+        const SizedBox(height: 16),
+
+        // Go to reset password button (Primary Action)
+        ElevatedButton(
+          onPressed: () => Navigator.of(context).pushNamed('/reset-password'),
+          style: ElevatedButton.styleFrom(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(30),
+            ),
+            padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 40),
             backgroundColor: const Color(0xFF8B5CF6),
             elevation: 6,
           ),
           child: const Text(
-            'Back to Login',
+            'Enter Reset Token →',
             style: TextStyle(
               color: Colors.white,
-              fontSize: 16,
+              fontSize: 18,
               fontWeight: FontWeight.bold,
             ),
           ),
@@ -254,40 +275,6 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
         ),
 
         const SizedBox(height: 10),
-
-        // Demo: Simulate clicking email link
-        Container(
-          padding: const EdgeInsets.all(16),
-          margin: const EdgeInsets.symmetric(horizontal: 20),
-          decoration: BoxDecoration(
-            color: Colors.orange[50],
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.orange.shade200),
-          ),
-          child: Column(
-            children: [
-              const Text(
-                '📧 Demo: Simulate Email Link',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.orange,
-                ),
-              ),
-              const SizedBox(height: 8),
-              TextButton.icon(
-                onPressed: () {
-                  Navigator.of(context).pushNamed('/reset-password');
-                },
-                icon: const Icon(Icons.link, size: 16),
-                label: const Text(
-                  'Go to Reset Password →',
-                  style: TextStyle(fontSize: 13),
-                ),
-              ),
-            ],
-          ),
-        ),
       ],
     );
   }

@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'dart:async';
 import 'career_detail_screen.dart';
 import '../../../services/api/career_service.dart';
 import '../../../models/career.dart';
+import '../../../models/career_recommendation.dart';
 
 // Career Suggestions Page
 class CareerSuggestionsPage extends StatefulWidget {
@@ -31,12 +33,50 @@ class _CareerSuggestionsPageState extends State<CareerSuggestionsPage> {
         _error = null;
       });
 
-      final careers = await CareerService.getAllCareers();
+      // Fetch both all careers and AI recommendations in parallel
+      final results = await Future.wait([
+        CareerService.getAllCareers(),
+        CareerService.getAIRecommendations().catchError((e) {
+          print('⚠️ AI recommendations fetch failed: $e');
+          return <CareerRecommendation>[];
+        }),
+      ]);
+
+      final allCareers = results[0] as List<Career>;
+      final aiRecommendations = results[1] as List<CareerRecommendation>;
 
       // Calculate match percentages for each career
-      final careersWithMatches = careers
-          .map((career) => career.copyWithMatchPercentage(widget.userSkills))
-          .toList();
+      final careersWithMatches = allCareers.map((career) {
+        // 1. Calculate local match based on skills
+        final baseMatch = career.copyWithMatchPercentage(widget.userSkills);
+
+        // 2. Check if there's an AI recommendation for this career
+        final aiMatch = aiRecommendations.firstWhere(
+          (r) => r.careerId == career.id || r.careerName == career.name,
+          orElse: () => CareerRecommendation(
+            careerId: -1,
+            careerName: '',
+            matchPercentage: 0,
+            reasoning: '',
+            strengths: [],
+            areasToDevelop: [],
+          ),
+        );
+
+        // 3. Use the higher of the two matches (AI is usually more accurate)
+        if (aiMatch.careerId != -1 &&
+            aiMatch.matchPercentage > baseMatch.matchPercentage) {
+          return Career(
+            id: career.id,
+            name: career.name,
+            description: career.description,
+            requiredSkills: career.requiredSkills,
+            matchPercentage: aiMatch.matchPercentage,
+          );
+        }
+
+        return baseMatch;
+      }).toList();
 
       // Sort by match percentage (highest first)
       careersWithMatches.sort(
