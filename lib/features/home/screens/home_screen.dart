@@ -11,8 +11,10 @@ import '../../quiz/screens/ai_quiz_screen.dart';
 import '../../jobs/screens/job_finder_screen.dart';
 import '../../notifications/screens/notifications_screen.dart';
 import '../../notifications/widgets/notification_badge.dart';
+import '../../admin/screens/admin_screen.dart';
 import 'package:flutter/material.dart';
 import '../../../models/user.dart';
+import '../../../providers/auth_provider.dart';
 import '../../../providers/notification_provider.dart';
 import '../../../services/local/storage_service.dart';
 import '../../../services/api/profile_service.dart';
@@ -312,6 +314,23 @@ class _HomeScreenState extends State<HomeScreen> {
             ],
           ),
           const SizedBox(height: 30),
+
+          // Admin Dashboard (only for admins)
+          if (context.watch<AuthProvider>().isAdmin) ...[
+            _buildCard(
+              icon: Icons.admin_panel_settings_outlined,
+              title: 'Admin Dashboard',
+              subtitle: 'Manage users & view stats',
+              buttonText: 'Open',
+              buttonColor: const Color(0xFF9B59B6),
+              onPressed: () {
+                Navigator.of(
+                  context,
+                ).push(MaterialPageRoute(builder: (_) => const AdminScreen()));
+              },
+            ),
+            const SizedBox(height: 16),
+          ],
 
           // AI Career Quiz section
           _buildCard(

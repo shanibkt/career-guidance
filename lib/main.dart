@@ -19,6 +19,7 @@ import 'features/quiz/screens/skill_quiz_screen.dart';
 import 'features/jobs/screens/job_finder_screen.dart';
 import 'features/notifications/screens/notifications_screen.dart';
 import 'features/notifications/screens/my_applications_screen.dart';
+import 'features/admin/screens/admin_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -90,6 +91,7 @@ class _MyAppState extends State<MyApp> {
             '/jobs': (context) => const JobFinderPage(),
             '/notifications': (context) => const NotificationsScreen(),
             '/my-applications': (context) => const MyApplicationsScreen(),
+            '/admin': (context) => const AdminScreen(),
             '/forgot-password': (context) => const ForgotPasswordPage(),
             '/reset-password': (context) => const ResetPasswordPage(),
           },

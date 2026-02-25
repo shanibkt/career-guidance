@@ -19,6 +19,7 @@ class AuthProvider extends ChangeNotifier {
   bool get isLoading => _isLoading;
   String? get error => _error;
   bool get isAuthenticated => _user != null && _token != null;
+  bool get isAdmin => _user?.role == 'admin' || _user?.role == 'Admin';
 
   /// Initialize provider - load saved auth data
   Future<void> initialize() async {
